@@ -49,7 +49,7 @@ Constant_Betting_Func <- function(p){
 
 ##ICM
 ```{r}
-IMC <- function(training_set, data, ncm, betting_function, k = 1){
+IMC <- function(training_set, data, ncm, betting_function, k = 1, th=1){
   
   training_set <- sample(training_set)
   
@@ -83,8 +83,11 @@ IMC <- function(training_set, data, ncm, betting_function, k = 1){
     min_Si <- min(Sn[1:i])
     Cn[i] <- log(Sn[i]) - log(min_Si)
   }
-
-  return(Cn)
+  
+  
+  change_point <- which(Cn>th)[1]
+  
+  return(change_point)
 }
 
 ```
@@ -105,27 +108,47 @@ serie_de_tiempo <- datos[(training_size + 1):length(datos)]
 ```{r}
 plot(serie_de_tiempo, type = "l", main = "Serie Temporal con Punto de Cambio",
      xlab = "Tiempo", ylab = "Valor", col = "blue")
-abline(v = 200, col = "red", lty = 2, lwd = 2)
+abline(v = 300, col = "red", lty = 2, lwd = 2)
 legend("topleft", legend = c("Serie", "Punto de Cambio"), 
        col = c("blue", "red"), lty = c(1, 2), lwd = c(1, 2))
 ```
 
 ```{r}
-resultado <- IMC(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(1/2))
-
+resultado <- IMC(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(1/2), th=2.8)
+#resultado
 ```
 
 ```{r}
-plot(resultado, type = "l", main = "Cn",
-     xlab = "Tiempo", ylab = "Cn", col = "blue")
-#abline(v = 499, col = "red", lty = 2, lwd = 2)
-abline(h = 2.8, col = "green", lty = 3, lwd = 2)  # Un valor h de umbral
+datos <- data.frame(
+  tiempo = 1:length(datos),
+  cn = datos
+)
+
+grafica_sinteticos<-ggplot(datos, aes(x = tiempo, y = cn)) +
+  geom_line(color = "black") +
+  # Agregar líneas verticales con color según tipo
+  geom_vline(aes(xintercept = resultado, color = "ICM"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = theta, color = "Punto de conocido"), linetype = "dashed", size = 1) +
+  scale_color_manual(
+    name = "Líneas",
+    values = c("ICM" = "red", "Punto de conocido" = "blue")
+  ) +
+  labs(
+    title = "Deteccion de punto de cambio en datos sinteticos",
+    x = "Tiempo",
+    y = "Valores sinteticos",
+    color = "Líneas"
+  ) +
+  theme_minimal()
+
 ```
-## Punto donde es detectado el cambio
 ```{r}
-th <- 3
-change_point <-which(resultado > th)[1]
+ggsave("serie_datos_sinteticos.png", plot = grafica_sinteticos, width = 10, height = 6, dpi = 600)
 ```
+```{r}
+grafica_sinteticos
+```
+
 
 ## Grafica de Cn para diferentes tamanos de entrenamiento 
 ```{r}
@@ -293,7 +316,7 @@ ggplot(serie, aes(x = fecha, y = valor)) +
 entrenamiento_achicaya <- serie %>% slice(1:75)
 serie_de_tiempo_anchicaya <- serie %>% slice(76:n())
 
-Cn <- IMC(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(10))
+Cn <- IMC(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(75/2))
 ```
 
 
@@ -301,14 +324,14 @@ Cn <- IMC(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = N
 plot(Cn, type = "l", main = "Cn",
      xlab = "Tiempo", ylab = "Cn", col = "blue")
 #abline(v = 499, col = "red", lty = 2, lwd = 2)
-abline(h = 2, col = "green", lty = 3, lwd = 2)  # Un valor h de umbral
+abline(h = 1.5, col = "green", lty = 3, lwd = 2)  # Un valor h de umbral
 ```
 ```{r}
 which(Cn > 2.5)[1]
 ```
 ## Algoritmo para multiple deteccion de punto de cambio
 ```{r}
-ICM_MULTIPLE <- function(training_set, data, ncm, betting_function, th, k = 1) {
+ICM_MULTIPLE <- function(training_set, data, ncm, betting_function, th, k = 1, retrain_size = NULL) {
   eps <- .Machine$double.eps
   N <- length(data)
   
@@ -320,41 +343,59 @@ ICM_MULTIPLE <- function(training_set, data, ncm, betting_function, th, k = 1) {
     window_data <- data[start_idx:N]
     M <- length(window_data)
     
-    # Preparamos vectores para window alphas, p-values y Cn
+    # Preparamos vectores para monitoring window alphas, p-values y Cn
     alphas   <- numeric(M)
     p_vals   <- numeric(M)
     Cn_vec   <- numeric(M)
     
+    # Reinicializamos martingale para esta ventana de monitoreo
     S       <- 1
     min_S   <- 1
+    
+    # Contador para el martingale (independiente del índice de ventana)
+    martingale_count <- 0
+    martingale_alphas <- numeric(M)  # Almacena solo los alphas para el cálculo del martingale
     
     for (j in seq_len(M)) {
       # 1) Calculamos el non-conformity score y lo guardamos
       alphas[j] <- ncm(window_data[j], training_set, k = k)
       
-      # 2) Calculamos p-valor basado en alphas[1:j]
-      if (j == 1) {
-        # único valor -> p uniformemente en (0,1)
+      # Incrementamos contador del martingale y almacenamos el alpha
+      martingale_count <- martingale_count + 1
+      martingale_alphas[martingale_count] <- alphas[j]
+      
+      # 2) Calculamos p-valor basado SOLO en los alphas del martingale (no incluye training set)
+      if (martingale_count == 1) {
         p_vals[j] <- runif(1)
       } else {
-        mayores <- sum(alphas[1:j] > alphas[j])
-        iguales <- sum(alphas[1:j] == alphas[j])
+        mayores <- sum(martingale_alphas[1:martingale_count] > martingale_alphas[martingale_count])
+        iguales <- sum(martingale_alphas[1:martingale_count] == martingale_alphas[martingale_count])
         u       <- runif(1)
-        p_vals[j] <- (mayores + u * iguales) / j
+        p_vals[j] <- (mayores + u * iguales) / martingale_count
       }
+      
       # 3) Actualizamos S con la función de apuesta
       g_j <- betting_function(p_vals[j])
-      # Aseguramos positividad
       S     <- max(S * g_j, eps)
       min_S <- max(min(min_S, S), eps)
       
       # 4) Calculamos Cn
       Cn_vec[j] <- log(S) - log(min_S)
       
-      # 5) Si supera umbral, registramos y rompemos para reiniciar
+      # 5) Si supera umbral, registramos cambio y actualizamos entrenamiento
       if (!is.na(Cn_vec[j]) && Cn_vec[j] > th) {
         cp_global <- start_idx + j - 1
         change_points <- c(change_points, cp_global)
+        
+        # Actualizamos conjunto de entrenamiento con datos a partir del cambio detectado
+        if (is.null(retrain_size)) {
+          training_set <- window_data[j:M]  # todo lo que queda
+        } else {
+          end_retrain <- min(j + retrain_size - 1, M)
+          training_set <- window_data[j:end_retrain]
+        }
+        
+        # Reiniciamos ventana desde el punto de cambio
         start_idx <- cp_global
         break
       }
@@ -372,7 +413,8 @@ ICM_MULTIPLE <- function(training_set, data, ncm, betting_function, th, k = 1) {
 
 
 ```{r}
-resultados <- ICM_MULTIPLE(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, th =1.5 , k = ceiling(10))
+set.seed(123)
+resultados <- ICM_MULTIPLE(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, th =1.5 , k = ceiling(75/2))
 ```
 
 
@@ -383,48 +425,99 @@ fechas_lineas
 ```
 
 ```{r}
+fechas_lineas <- sort(fechas_lineas)
+
+# Crear vector de rangos (inicio y fin)
+rangos_inicio <- c(min(serie$fecha), fechas_lineas)
+rangos_fin <- c(fechas_lineas, max(serie$fecha))
+
+# Crear data frame con medias por tramo
+segmentos_media <- purrr::map2_df(rangos_inicio, rangos_fin, ~ {
+  df_segmento <- serie %>% filter(fecha >= .x, fecha < .y)
+  if(nrow(df_segmento) > 0){
+    tibble(
+      fecha_inicio = min(df_segmento$fecha),
+      fecha_fin = max(df_segmento$fecha),
+      media = mean(df_segmento$valor, na.rm = TRUE)
+    )
+  } else {
+    NULL
+  }
+})
+
+# Graficar todo junto
 p<-ggplot(serie, aes(x = fecha, y = valor)) +
   geom_line() +
-  geom_vline(xintercept = fechas_lineas, color = "red", linetype = "dashed", size=1) +
+  # Líneas verticales
+  geom_vline(xintercept = fechas_lineas, color = "red", linetype = "dashed", linewidth=1) +
+  # Etiquetas en líneas verticales
   geom_text(
     data = data.frame(fechas_lineas),
     aes(x = fechas_lineas, y = max(serie$valor, na.rm = TRUE) + 5, 
         label = format(fechas_lineas, "%Y-%m")),
     angle = 0, vjust = 0, hjust = -0.2, color = "black", size = 3
   ) +
+  # Líneas horizontales de medias por tramo
+  geom_segment(
+    data = segmentos_media,
+    aes(x = fecha_inicio, xend = fecha_fin, y = media, yend = media),
+    color = "red", linewidth = 1
+  ) +
   theme_minimal() +
-  labs(title = "Serie mensual - Alto Anchicaya",
-       x = "Fecha",
-       y = "Valor")
+  labs(
+    title = "Serie mensual - Alto Anchicaya",
+    x = "Fecha",
+    y = "Valor"
+  )
 ```
 
 ```{r}
-ggsave("serie_anchicaya.png", plot = p, width = 10, height = 6, dpi = 300)
+ggsave("serie_anchicaya.png", plot = p, width = 10, height = 6, dpi = 600)
 ```
 ```{r}
 p
 ```
 
-
-
+#ICM para detectar punto de cambio baseball
 ```{r}
-print(resultados)
+entrenamiento_baseball <- mlb_diffs$hr_rate_diff[1:10]
+serie_de_tiempo_baseball <- mlb_diffs$hr_rate_diff[11:length(mlb_diffs$hr_rate_diff)]
+
+
+resultado <- IMC(entrenamiento_baseball, serie_de_tiempo_baseball, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(10/2), th=3)
+resultado
+```
+```{r}
+tible <- mlb_diffs
 ```
 
-```{r}
 
-hr_diff_vector <- mlb_diffs$hr_rate_diff
+```{r}
+fechas_lineas <- mlb_diffs$yearID[51]
+fechas_lineas
 ```
 
+
+
 ```{r}
-ggplot(mlb_diffs, aes(x = yearID, y = hr_rate_diff)) +
+grafica_baseball <- ggplot(mlb_diffs, aes(x = yearID, y = hr_rate_diff)) +
   geom_line() +
+  geom_vline(aes(xintercept = yearID[resultado], color = "ICM"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = yearID[49], color = "Punto conocido"), linetype = "dashed", size = 1) +
+  scale_color_manual(
+    name = "Líneas",
+    values = c("ICM" = "red", "Punto conocido" = "blue")
+  ) +
   labs(
     title = "Home Run Rate Difference Over Time",
     x = "Year",
     y = "HR Rate Diff"
   ) +
   theme_minimal()
+```
+
+```{r}
+ggsave("serie_baseball.png", plot = grafica_baseball, width = 10, height = 6, dpi = 300)
 ```
 
 
