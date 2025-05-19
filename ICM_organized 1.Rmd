@@ -1,0 +1,430 @@
+---
+title: "Martingala Conformal Completo"
+output: html_notebook
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(ggplot2)
+library(tidychangepoint)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+```
+
+
+## Non-conformity measures
+```{r}
+Non_conformity_KNN <- function(xi, training_set, k) {
+  dist <- abs(xi - training_set)
+  NN <- sort(dist)[1:k]
+  return(mean(NN))
+}
+```
+
+## Betting Functions
+```{r}
+Mixture_Betting_Func <- function(p) {
+  return((p*log(p) - p + 1)/(p*(log(p))^2))
+}
+
+Constant_Betting_Func <- function(p){
+  if (p>= 0 && p<0.5){
+    val<-1.5
+  }
+  else if(p>= 0.5 && p<=1){
+    val<- 0.5
+  }
+}
+
+
+
+
+```
+
+##ICM
+```{r}
+IMC <- function(training_set, data, ncm, betting_function, k = 1){
+  
+  training_set <- sample(training_set)
+  
+  # Calcular valores alfa
+  valores_alfa <- numeric(length(data))
+  for (i in 1:length(data)) {
+    valores_alfa[i] <- ncm(data[i], training_set, k = k)
+  }
+
+  # Calcular p-valores
+  p_valores <- numeric(length(data))
+  for (i in 1:length(data)) {
+    mayores <- sum(valores_alfa[1:i] > valores_alfa[i])
+    iguales <- sum(valores_alfa[1:i] == valores_alfa[i])
+    u <- runif(1)
+    p_valores[i] <- (mayores + u * iguales) / i
+  }
+  # Aplicar función de apuesta
+  g_valores <- sapply(p_valores, betting_function)
+  # Calcular Sn
+  Sn <- numeric(length(data))
+  S_0 <- 1
+  Sn[1] <- S_0 * g_valores[1]
+  for (i in 2:length(data)) {
+    Sn[i] <- Sn[i-1] * g_valores[i]
+  }
+
+  # Calcular Cn
+  Cn <- numeric(length(data))
+  for (i in 1:length(data)) {
+    min_Si <- min(Sn[1:i])
+    Cn[i] <- log(Sn[i]) - log(min_Si)
+  }
+
+  return(Cn)
+}
+
+```
+
+## Generar datos
+```{r}
+set.seed(123)
+theta <- 300
+training_size <- 1
+datos <- c(rnorm(theta , mean = 0, sd = 1), rnorm(1000 - theta + 1, mean = 1, sd = 1))
+entrenamiento <- datos[1:training_size]
+serie_de_tiempo <- datos[(training_size + 1):length(datos)]
+
+
+```
+
+##Graficamos la serie con su punto de cambio
+```{r}
+plot(serie_de_tiempo, type = "l", main = "Serie Temporal con Punto de Cambio",
+     xlab = "Tiempo", ylab = "Valor", col = "blue")
+abline(v = 200, col = "red", lty = 2, lwd = 2)
+legend("topleft", legend = c("Serie", "Punto de Cambio"), 
+       col = c("blue", "red"), lty = c(1, 2), lwd = c(1, 2))
+```
+
+```{r}
+resultado <- IMC(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(1/2))
+
+```
+
+```{r}
+plot(resultado, type = "l", main = "Cn",
+     xlab = "Tiempo", ylab = "Cn", col = "blue")
+#abline(v = 499, col = "red", lty = 2, lwd = 2)
+abline(h = 2.8, col = "green", lty = 3, lwd = 2)  # Un valor h de umbral
+```
+## Punto donde es detectado el cambio
+```{r}
+th <- 3
+change_point <-which(resultado > th)[1]
+```
+
+## Grafica de Cn para diferentes tamanos de entrenamiento 
+```{r}
+set.seed(123)
+theta <- 299
+datos <- c(rnorm(theta , mean = 0, sd = 1), rnorm(700 - theta + 1, mean = 1, sd = 1))
+
+
+resultados_Cn <- list()
+
+for (m in c(1,2,3,4,5)) {
+  entrenamiento <- datos[1:m]
+  serie_de_tiempo <- datos[(m + 1):length(datos)]
+  
+  resultado <- IMC(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(m/2))
+  
+  resultados_Cn[[paste0("m=", m)]] <- resultado
+}
+
+colors <- c("blue", "red", "green", "purple", "orange")
+line_types <- 1:length(resultados_Cn)
+th <- 4  # Umbral
+change_point <- 299
+
+# Determinar el máximo de Y
+max_y <- max(sapply(resultados_Cn, max, na.rm = TRUE))
+
+# Crear el gráfico vacío
+plot(NULL, xlim = c(1, length(datos)), ylim = c(0, max_y + 5),
+     main = "Conformal Martingale (Cn) for Different m Values - IMC",
+     xlab = "Time", ylab = "Cn")
+
+# Agregar cada línea Cn
+i <- 1
+for (nombre in names(resultados_Cn)) {
+  m <- as.numeric(gsub("m=", "", nombre))
+  Cn <- resultados_Cn[[nombre]]
+  indices <- (m + 1):length(datos)
+  
+  lines(indices, Cn, col = colors[i], lty = line_types[i], lwd = 2)
+  i <- i + 1
+}
+
+# Línea vertical para el punto de cambio real
+abline(v = change_point, col = "black", lty = 2, lwd = 2)
+
+# Línea horizontal para el umbral
+abline(h = th, col = "gray", lty = 3, lwd = 1)
+
+# Leyenda
+legend("topleft", 
+       legend = c(names(resultados_Cn), "Change Point", "Threshold"),
+       col = c(colors[1:length(resultados_Cn)], "black", "gray"), 
+       lty = c(line_types, 2, 3),
+       lwd = c(rep(2, length(resultados_Cn)), 2, 1))
+
+
+```
+## Montecarlo para graficas FA vs MEAN DELAY
+```{r}
+set.seed(123)
+montecarlo <- function(n_sim = 100, h_vals = seq(1, 6, 0.5), theta = 500, mu1 = 1.5, m = 1) {
+  delay_results <- matrix(NA, nrow = n_sim, ncol = length(h_vals))
+  false_alarms <- matrix(NA, nrow = n_sim, ncol = length(h_vals))
+  
+  for (sim in 1:n_sim) {
+    # Generar datos con cambio en theta
+    datos <- c(rnorm(theta - 1, 0, 1), rnorm(1000 - theta + 1, mu1, 1))
+    datos_entrenamiento <- datos[1:m]
+    datos_restantes <- datos[(m + 1):length(datos)]
+    
+    # Elegir k para NCM
+    k <- ceiling(m / 2)
+    
+    # Ejecutar IMC
+    Cn <- IMC(datos_entrenamiento,
+              datos_restantes,
+              ncm = Non_conformity_KNN,
+              betting_function = Mixture_Betting_Func,
+              k = k)
+    
+    for (j in seq_along(h_vals)) {
+      h <- h_vals[j]
+      tau <- which(Cn > h)[1]
+      
+      if (is.na(tau)) {
+        false_alarms[sim, j] <- 0
+        delay_results[sim, j] <- NA
+      } else if (tau < theta - m) {
+        false_alarms[sim, j] <- 1
+        delay_results[sim, j] <- NA
+      } else {
+        false_alarms[sim, j] <- 0
+        delay_results[sim, j] <- tau - (theta - m)
+      }
+    }
+  }
+  
+  # Calcular métricas agregadas
+  p_false_alarm <- colMeans(false_alarms)
+  mean_delay <- colMeans(delay_results, na.rm = TRUE)
+  
+  list(thresholds = h_vals, p_false_alarm = p_false_alarm, mean_delay = mean_delay)
+}
+
+res <- montecarlo(n_sim = 100, h_vals = seq(1, 6, 0.5), theta = 300, mu1 = 1, m = 200)
+
+plot(res$p_false_alarm, log10(1 + res$mean_delay), type = "b",
+     xlab = "Probabilidad de Falsa Alarma", ylab = "log10(1 + Retardo Medio)",
+     main = "ICM con KNN: Retardo vs. Prob. Falsa Alarma", col = "blue", pch = 19)
+grid()
+
+
+```
+
+## Prueba con datos reales hidricos
+
+```{r}
+# Vector de meses en español en el orden correcto
+meses <- c("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+           "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre")
+
+# Limpiar nombres de columnas por si hay espacios
+colnames(Series) <- trimws(colnames(Series))
+
+# Asegurar que 'Año' es numérico
+datos <- Series %>%
+  mutate(Año = as.numeric(Año))
+
+# Transformar a formato largo y construir fecha
+datos_largos <- Series %>%
+  pivot_longer(cols = all_of(meses), names_to = "Mes", values_to = "valor") %>%
+  mutate(
+    Mes = factor(Mes, levels = meses),               # para asegurar el orden
+    mes_num = as.integer(Mes),                       # convertir a número de mes
+    fecha = make_date(year = Año, month = mes_num, day = 1),
+    valor = ifelse(valor == -99, NA, valor)          # convertir -99 a NA
+  ) %>%
+  select(Planta, Nombre, fecha, valor) %>%
+  arrange(Planta, Nombre, fecha)
+```
+
+
+```{r}
+serie <- datos_largos %>%
+  filter(Planta == "ALTO ANCHICAYA", Nombre == "Alto Anchicaya")
+```
+
+```{r}
+ggplot(serie, aes(x = fecha, y = valor)) +
+  geom_line() +
+  labs(
+    title = "Serie mensual - Alto Anchicaya",
+    x = "Año",
+    y = "Valor"
+  ) +
+  scale_x_date(date_labels = "%Y", date_breaks = "2 years") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r}
+entrenamiento_achicaya <- serie %>% slice(1:75)
+serie_de_tiempo_anchicaya <- serie %>% slice(76:n())
+
+Cn <- IMC(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(10))
+```
+
+
+```{r}
+plot(Cn, type = "l", main = "Cn",
+     xlab = "Tiempo", ylab = "Cn", col = "blue")
+#abline(v = 499, col = "red", lty = 2, lwd = 2)
+abline(h = 2, col = "green", lty = 3, lwd = 2)  # Un valor h de umbral
+```
+```{r}
+which(Cn > 2.5)[1]
+```
+## Algoritmo para multiple deteccion de punto de cambio
+```{r}
+ICM_MULTIPLE <- function(training_set, data, ncm, betting_function, th, k = 1) {
+  eps <- .Machine$double.eps
+  N <- length(data)
+  
+  change_points <- integer(0)
+  start_idx     <- 1
+  
+  while (start_idx < N) {
+    # Datos de la ventana actual
+    window_data <- data[start_idx:N]
+    M <- length(window_data)
+    
+    # Preparamos vectores para window alphas, p-values y Cn
+    alphas   <- numeric(M)
+    p_vals   <- numeric(M)
+    Cn_vec   <- numeric(M)
+    
+    S       <- 1
+    min_S   <- 1
+    
+    for (j in seq_len(M)) {
+      # 1) Calculamos el non-conformity score y lo guardamos
+      alphas[j] <- ncm(window_data[j], training_set, k = k)
+      
+      # 2) Calculamos p-valor basado en alphas[1:j]
+      if (j == 1) {
+        # único valor -> p uniformemente en (0,1)
+        p_vals[j] <- runif(1)
+      } else {
+        mayores <- sum(alphas[1:j] > alphas[j])
+        iguales <- sum(alphas[1:j] == alphas[j])
+        u       <- runif(1)
+        p_vals[j] <- (mayores + u * iguales) / j
+      }
+      # 3) Actualizamos S con la función de apuesta
+      g_j <- betting_function(p_vals[j])
+      # Aseguramos positividad
+      S     <- max(S * g_j, eps)
+      min_S <- max(min(min_S, S), eps)
+      
+      # 4) Calculamos Cn
+      Cn_vec[j] <- log(S) - log(min_S)
+      
+      # 5) Si supera umbral, registramos y rompemos para reiniciar
+      if (!is.na(Cn_vec[j]) && Cn_vec[j] > th) {
+        cp_global <- start_idx + j - 1
+        change_points <- c(change_points, cp_global)
+        start_idx <- cp_global
+        break
+      }
+      
+      # 6) Si llegamos al final sin detección, forzamos fin de while
+      if (j == M) {
+        start_idx <- N
+      }
+    }
+  }
+  
+  return(change_points)
+}
+```
+
+
+```{r}
+resultados <- ICM_MULTIPLE(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, th =1.5 , k = ceiling(10))
+```
+
+
+```{r}
+indices <- resultados
+fechas_lineas <- serie$fecha[indices]
+fechas_lineas
+```
+
+```{r}
+p<-ggplot(serie, aes(x = fecha, y = valor)) +
+  geom_line() +
+  geom_vline(xintercept = fechas_lineas, color = "red", linetype = "dashed", size=1) +
+  geom_text(
+    data = data.frame(fechas_lineas),
+    aes(x = fechas_lineas, y = max(serie$valor, na.rm = TRUE) + 5, 
+        label = format(fechas_lineas, "%Y-%m")),
+    angle = 0, vjust = 0, hjust = -0.2, color = "black", size = 3
+  ) +
+  theme_minimal() +
+  labs(title = "Serie mensual - Alto Anchicaya",
+       x = "Fecha",
+       y = "Valor")
+```
+
+```{r}
+ggsave("serie_anchicaya.png", plot = p, width = 10, height = 6, dpi = 300)
+```
+```{r}
+p
+```
+
+
+
+```{r}
+print(resultados)
+```
+
+```{r}
+
+hr_diff_vector <- mlb_diffs$hr_rate_diff
+```
+
+```{r}
+ggplot(mlb_diffs, aes(x = yearID, y = hr_rate_diff)) +
+  geom_line() +
+  labs(
+    title = "Home Run Rate Difference Over Time",
+    x = "Year",
+    y = "HR Rate Diff"
+  ) +
+  theme_minimal()
+```
+
+
