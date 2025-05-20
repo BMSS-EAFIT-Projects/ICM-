@@ -15,8 +15,12 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(lubridate)
+library(reshape2)
 ```
 
+```{r}
+Series <- read_excel("C:/Users/USER/Downloads/Series.xlsx")
+```
 
 ## Non-conformity measures
 ```{r}
@@ -25,6 +29,8 @@ Non_conformity_KNN <- function(xi, training_set, k) {
   NN <- sort(dist)[1:k]
   return(mean(NN))
 }
+
+
 ```
 
 ## Betting Functions
@@ -42,7 +48,65 @@ Constant_Betting_Func <- function(p){
   }
 }
 
+KDE <- function(p_values, n_grid = 512) {
+  
+  # Create extended sample with reflections
+  extended_sample <- c()
+  for(p in p_values) {
+    extended_sample <- c(extended_sample, -p, p, 2-p)}
+  
+  # Create grid for density estimation - extended to [-1.5, 2.5] as suggested
+  grid <- seq(-1.5, 2.5, length.out = n_grid)
+  
+  # Calculate bandwidth using Silverman's rule of thumb
+  n <- length(p_values)
+  sigma <- min(sd(p_values), IQR(p_values)/1.34)
+  h <- 0.9 * sigma * n^(-0.2) # Silverman's rule
+  
+  # Compute KDE using the stats package
+  kde <- stats::density(extended_sample, kernel = "gaussian", bw = h, n = n_grid, 
+                        from = -1.5, to = 2.5)
+  
+  # Extract the density values within [0,1]
+  in_range <- kde$x >= 0 & kde$x <= 1
+  x_vals <- kde$x[in_range]
+  y_vals <- kde$y[in_range]
+  
+  # Normalize to integrate to 1 over [0,1]
+  delta <- x_vals[2] - x_vals[1]
+  area <- sum(y_vals) * delta
+  y_vals <- y_vals / area
+  
+  # Return a betting function of p 
+  betting_function <- function(p) {
+    if (any(p < 0 | p > 1)) return(0)
+    return(approx(x_vals, y_vals, xout = p, rule = 2)$y)
+  }
+  
+  return(betting_function)
+}
 
+KDE_Betting_Func <- function(training_set, test_size, non_conformity_measure){
+  train_alphas <- numeric(test_size)
+  train_base <- training_set[1]
+  remaining_train <- training_set[2:test_size]
+  
+  # Calculate non-conformity measure of the elements in the training set
+  for (i in 1:(test_size-1)) {
+    train_alphas[i] <- non_conformity_measure(training_set[i], train_base)}
+  
+  # Calculate the p-values of the elements in the training set
+  train_p_values <- numeric(test_size - 1)
+  for (i in 1:(test_size-1)) {
+    alpha_i <- train_alphas[i]
+    U <- runif(1)
+    train_p_values[i] <- (sum(train_alphas[1:i] > alpha_i) + U * sum(train_alphas[1:i] == alpha_i)) / i}
+  
+  # Create the kernel density betting function based on the p-values of the training set
+  bf_precomputed_kde <- KDE(train_p_values)
+  
+  return(bf_precomputed_kde)
+}
 
 
 ```
@@ -87,7 +151,10 @@ IMC <- function(training_set, data, ncm, betting_function, k = 1, th=1){
   
   change_point <- which(Cn>th)[1]
   
-  return(change_point)
+  return(list(
+    Cn           = Cn,
+    change_point = change_point  # si quieres conservar th=1 por defecto
+  ))
 }
 
 ```
@@ -127,7 +194,7 @@ datos <- data.frame(
 grafica_sinteticos<-ggplot(datos, aes(x = tiempo, y = cn)) +
   geom_line(color = "black") +
   # Agregar líneas verticales con color según tipo
-  geom_vline(aes(xintercept = resultado, color = "ICM"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = resultado$change_point, color = "ICM"), linetype = "dashed", linewidth = 1) +
   geom_vline(aes(xintercept = theta, color = "Punto de conocido"), linetype = "dashed", size = 1) +
   scale_color_manual(
     name = "Líneas",
@@ -143,7 +210,7 @@ grafica_sinteticos<-ggplot(datos, aes(x = tiempo, y = cn)) +
 
 ```
 ```{r}
-ggsave("serie_datos_sinteticos.png", plot = grafica_sinteticos, width = 10, height = 6, dpi = 600)
+#ggsave("serie_datos_sinteticos.png", plot = grafica_sinteticos, width = 10, height = 6, dpi = 600)
 ```
 ```{r}
 grafica_sinteticos
@@ -165,7 +232,7 @@ for (m in c(1,2,3,4,5)) {
   
   resultado <- IMC(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(m/2))
   
-  resultados_Cn[[paste0("m=", m)]] <- resultado
+  resultados_Cn[[paste0("m=", m)]] <- resultado$Cn
 }
 
 colors <- c("blue", "red", "green", "purple", "orange")
@@ -207,61 +274,129 @@ legend("topleft",
 
 
 ```
+
 ## Montecarlo para graficas FA vs MEAN DELAY
 ```{r}
 set.seed(123)
-montecarlo <- function(n_sim = 100, h_vals = seq(1, 6, 0.5), theta = 500, mu1 = 1.5, m = 1) {
-  delay_results <- matrix(NA, nrow = n_sim, ncol = length(h_vals))
-  false_alarms <- matrix(NA, nrow = n_sim, ncol = length(h_vals))
+montecarlo_multi <- function(n_sim      = 100,
+                             h_vals     = seq(1, 6, 0.5),
+                             scenarios  = list(
+                               list(theta = 100, mu1 = 1),
+                               list(theta = 100, mu1 = 1.5),
+                               list(theta = 100, mu1 = 2)
+                             ),
+                             m          = 1,
+                             ncm_fun    = Non_conformity_KNN,
+                             bet_fun    = Mixture_Betting_Func) {
   
-  for (sim in 1:n_sim) {
-    # Generar datos con cambio en theta
-    datos <- c(rnorm(theta - 1, 0, 1), rnorm(1000 - theta + 1, mu1, 1))
-    datos_entrenamiento <- datos[1:m]
-    datos_restantes <- datos[(m + 1):length(datos)]
+  # almacenamiento de resultados por escenario
+  results_list <- vector("list", length(scenarios))
+  names(results_list) <- paste0("mu1=", sapply(scenarios, `[[`, "mu1"))
+  
+  for (i in seq_along(scenarios)) {
+    sc    <- scenarios[[i]]
+    theta <- sc$theta
+    mu1   <- sc$mu1
     
-    # Elegir k para NCM
-    k <- ceiling(m / 2)
+    delay_results  <- matrix(NA, nrow = n_sim, ncol = length(h_vals))
+    false_alarms   <- matrix(NA, nrow = n_sim, ncol = length(h_vals))
     
-    # Ejecutar IMC
-    Cn <- IMC(datos_entrenamiento,
-              datos_restantes,
-              ncm = Non_conformity_KNN,
-              betting_function = Mixture_Betting_Func,
-              k = k)
-    
-    for (j in seq_along(h_vals)) {
-      h <- h_vals[j]
-      tau <- which(Cn > h)[1]
+    for (sim in seq_len(n_sim)) {
+      # simular serie con cambio en theta
+      datos <- c(rnorm(theta - 1, 0, 1),
+                 rnorm(1000 - theta + 1, mu1, 1))
+      datos_ent <- datos[1:m]
+      datos_rem <- datos[(m + 1):length(datos)]
       
-      if (is.na(tau)) {
-        false_alarms[sim, j] <- 0
-        delay_results[sim, j] <- NA
-      } else if (tau < theta - m) {
-        false_alarms[sim, j] <- 1
-        delay_results[sim, j] <- NA
-      } else {
-        false_alarms[sim, j] <- 0
-        delay_results[sim, j] <- tau - (theta - m)
+      # k para KNN
+      k <- ceiling(m / 2)
+      
+      # ejecutar ICM
+      Cn <- IMC(datos_ent,
+                datos_rem,
+                ncm              = ncm_fun,
+                betting_function = bet_fun,
+                k                = k)
+      
+      # loop umbrales
+      for (j in seq_along(h_vals)) {
+        h   <- h_vals[j]
+        tau <- which(Cn$Cn > h)[1]
+        
+        if (is.na(tau)) {
+          false_alarms[sim, j]  <- 0
+        } else if (tau < theta - m) {
+          false_alarms[sim, j]  <- 1
+        } else {
+          false_alarms[sim, j]  <- 0
+          delay_results[sim, j] <- tau - (theta - m)
+        }
       }
     }
+    
+    # calcular métricas
+    p_fa       <- colMeans(false_alarms)
+    mean_delay <- colMeans(delay_results, na.rm = TRUE)
+    
+    results_list[[i]] <- data.frame(
+      scenario      = names(results_list)[i],
+      threshold     = h_vals,
+      p_false_alarm = p_fa,
+      mean_delay    = mean_delay,
+      log_delay     = log10(1 + mean_delay)
+    )
   }
   
-  # Calcular métricas agregadas
-  p_false_alarm <- colMeans(false_alarms)
-  mean_delay <- colMeans(delay_results, na.rm = TRUE)
-  
-  list(thresholds = h_vals, p_false_alarm = p_false_alarm, mean_delay = mean_delay)
+  # combinar resultados
+  do.call(rbind, results_list)
 }
 
-res <- montecarlo(n_sim = 100, h_vals = seq(1, 6, 0.5), theta = 300, mu1 = 1, m = 200)
+# --- EJEMPLO DE USO ---
 
-plot(res$p_false_alarm, log10(1 + res$mean_delay), type = "b",
-     xlab = "Probabilidad de Falsa Alarma", ylab = "log10(1 + Retardo Medio)",
-     main = "ICM con KNN: Retardo vs. Prob. Falsa Alarma", col = "blue", pch = 19)
+# definir los 3 escenarios
+scenarios <- list(
+  list(theta = 300, mu1 = 1),
+  list(theta = 300, mu1 = 1.5),
+  list(theta = 300, mu1 = 2)
+)
+
+# lanzar simulación
+res_df <- montecarlo_multi(
+  n_sim     = 100,
+  h_vals    = seq(1, 6, 0.5),
+  scenarios = scenarios,
+  m         = 200,
+  ncm_fun   = Non_conformity_KNN,
+  bet_fun   = Mixture_Betting_Func
+)
+
+# preparar colores
+sc_names <- unique(res_df$scenario)
+cols     <- c("red", "blue", "darkgreen")[seq_along(sc_names)]
+
+# plot superpuesto
+plot(NULL,
+     xlim = range(res_df$p_false_alarm),
+     ylim = range(res_df$log_delay, na.rm = TRUE),
+     xlab = "Probabilidad de Falsa Alarma",
+     ylab = "log10(1 + Retardo Medio)",
+     main = "Comparación de Escenarios ICM")
 grid()
 
+for (i in seq_along(sc_names)) {
+  sub <- subset(res_df, scenario == sc_names[i])
+  lines(sub$p_false_alarm,
+        sub$log_delay,
+        type = "b",
+        pch  = 19,
+        col  = cols[i])
+}
 
+legend("topright",
+       legend = sc_names,
+       col    = cols,
+       pch    = 19,
+       title  = "Escenarios")
 ```
 
 ## Prueba con datos reales hidricos
@@ -321,7 +456,7 @@ Cn <- IMC(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = N
 
 
 ```{r}
-plot(Cn, type = "l", main = "Cn",
+plot(Cn$Cn, type = "l", main = "Cn",
      xlab = "Tiempo", ylab = "Cn", col = "blue")
 #abline(v = 499, col = "red", lty = 2, lwd = 2)
 abline(h = 1.5, col = "green", lty = 3, lwd = 2)  # Un valor h de umbral
@@ -472,7 +607,7 @@ p<-ggplot(serie, aes(x = fecha, y = valor)) +
 ```
 
 ```{r}
-ggsave("serie_anchicaya.png", plot = p, width = 10, height = 6, dpi = 600)
+#ggsave("serie_anchicaya.png", plot = p, width = 10, height = 6, dpi = 600)
 ```
 ```{r}
 p
@@ -502,7 +637,7 @@ fechas_lineas
 ```{r}
 grafica_baseball <- ggplot(mlb_diffs, aes(x = yearID, y = hr_rate_diff)) +
   geom_line() +
-  geom_vline(aes(xintercept = yearID[resultado], color = "ICM"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = yearID[resultado$change_point], color = "ICM"), linetype = "dashed", size = 1) +
   geom_vline(aes(xintercept = yearID[49], color = "Punto conocido"), linetype = "dashed", size = 1) +
   scale_color_manual(
     name = "Líneas",
@@ -514,6 +649,10 @@ grafica_baseball <- ggplot(mlb_diffs, aes(x = yearID, y = hr_rate_diff)) +
     y = "HR Rate Diff"
   ) +
   theme_minimal()
+```
+
+```{r}
+grafica_baseball
 ```
 
 ```{r}
