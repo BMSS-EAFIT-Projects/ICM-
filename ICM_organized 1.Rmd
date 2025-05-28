@@ -16,10 +16,12 @@ library(dplyr)
 library(tidyr)
 library(lubridate)
 library(reshape2)
+library(readxl)
 ```
 
 ```{r}
-Series <- read_excel("C:/Users/USER/Downloads/Series.xlsx")
+
+Series <- read_excel("C:/Users/USER/Desktop/ICM_Ms_Degree/Archivos/Series.xlsx")
 ```
 
 ## Non-conformity measures
@@ -113,47 +115,49 @@ KDE_Betting_Func <- function(training_set, test_size, non_conformity_measure){
 
 ##ICM
 ```{r}
-IMC <- function(training_set, data, ncm, betting_function, k = 1, th=1){
-  
+IMC <- function(training_set, data, ncm, betting_function, k = 1, th = 1) {
+  # Barajar el conjunto de entrenamiento
   training_set <- sample(training_set)
   
-  # Calcular valores alfa
-  valores_alfa <- numeric(length(data))
-  for (i in 1:length(data)) {
+  n            <- length(data)
+  valores_alfa <- numeric(n)
+  p_valores    <- numeric(n)
+  g_valores    <- numeric(n)
+  Sn           <- numeric(n)
+  Cn           <- numeric(n)
+  
+  S_prev   <- 1      # S_0 = 1
+  min_S    <- S_prev
+  change_point <- NA
+  
+  for (i in seq_len(n)) {
+    # 1) non-conformity score ωᵢ
     valores_alfa[i] <- ncm(data[i], training_set, k = k)
-  }
-
-  # Calcular p-valores
-  p_valores <- numeric(length(data))
-  for (i in 1:length(data)) {
+    
+    # 2) p-valor pᵢ
     mayores <- sum(valores_alfa[1:i] > valores_alfa[i])
     iguales <- sum(valores_alfa[1:i] == valores_alfa[i])
-    u <- runif(1)
+    u       <- runif(1)
     p_valores[i] <- (mayores + u * iguales) / i
-  }
-  # Aplicar función de apuesta
-  g_valores <- sapply(p_valores, betting_function)
-  # Calcular Sn
-  Sn <- numeric(length(data))
-  S_0 <- 1
-  Sn[1] <- S_0 * g_valores[1]
-  for (i in 2:length(data)) {
-    Sn[i] <- Sn[i-1] * g_valores[i]
-  }
-
-  # Calcular Cn
-  Cn <- numeric(length(data))
-  for (i in 1:length(data)) {
-    min_Si <- min(Sn[1:i])
-    Cn[i] <- log(Sn[i]) - log(min_Si)
+    
+    # 3) función de apuesta gᵢ
+    g_valores[i] <- betting_function(p_valores[i])
+    
+    # 4) actualizar martingala Sᵢ = S_{i-1} · gᵢ
+    Sn[i]   <- S_prev * g_valores[i]
+    S_prev  <- Sn[i]
+    
+    # 5) conformal Cᵢ = log Sᵢ − log (min Sⱼ for j≤i)
+    min_S    <- min(min_S, Sn[i])
+    Cn[i]    <- log(S_prev) - log(min_S)
   }
   
-  
-  change_point <- which(Cn>th)[1]
+  # Localizar el primer punto donde Cn > th
+  change_point <- which(Cn > th)[1]
   
   return(list(
     Cn           = Cn,
-    change_point = change_point  # si quieres conservar th=1 por defecto
+    change_point = change_point
   ))
 }
 
@@ -462,7 +466,7 @@ plot(Cn$Cn, type = "l", main = "Cn",
 abline(h = 1.5, col = "green", lty = 3, lwd = 2)  # Un valor h de umbral
 ```
 ```{r}
-which(Cn > 2.5)[1]
+which(Cn$Cn > 2.5)[1]
 ```
 ## Algoritmo para multiple deteccion de punto de cambio
 ```{r}
@@ -656,7 +660,5 @@ grafica_baseball
 ```
 
 ```{r}
-ggsave("serie_baseball.png", plot = grafica_baseball, width = 10, height = 6, dpi = 300)
+#ggsave("serie_baseball.png", plot = grafica_baseball, width = 10, height = 6, dpi = 300)
 ```
-
-
