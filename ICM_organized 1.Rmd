@@ -51,63 +51,80 @@ Constant_Betting_Func <- function(p){
 }
 
 KDE <- function(p_values, n_grid = 512) {
-  
-  # Create extended sample with reflections
-  extended_sample <- c()
-  for(p in p_values) {
-    extended_sample <- c(extended_sample, -p, p, 2-p)}
-  
-  # Create grid for density estimation - extended to [-1.5, 2.5] as suggested
-  grid <- seq(-1.5, 2.5, length.out = n_grid)
-  
-  # Calculate bandwidth using Silverman's rule of thumb
-  n <- length(p_values)
-  sigma <- min(sd(p_values), IQR(p_values)/1.34)
-  h <- 0.9 * sigma * n^(-0.2) # Silverman's rule
-  
-  # Compute KDE using the stats package
-  kde <- stats::density(extended_sample, kernel = "gaussian", bw = h, n = n_grid, 
-                        from = -1.5, to = 2.5)
-  
-  # Extract the density values within [0,1]
-  in_range <- kde$x >= 0 & kde$x <= 1
-  x_vals <- kde$x[in_range]
-  y_vals <- kde$y[in_range]
-  
-  # Normalize to integrate to 1 over [0,1]
-  delta <- x_vals[2] - x_vals[1]
-  area <- sum(y_vals) * delta
-  y_vals <- y_vals / area
-  
-  # Return a betting function of p 
-  betting_function <- function(p) {
-    if (any(p < 0 | p > 1)) return(0)
-    return(approx(x_vals, y_vals, xout = p, rule = 2)$y)
+  p_values <- as.numeric(p_values)
+  n        <- length(p_values)
+
+  # Bandwidth: regla nrd0 + fallback
+  h0 <- stats::bw.nrd0(p_values)
+  if (!is.finite(h0) || h0 <= 0) {
+    h0 <- max(diff(range(p_values)) * n^(-1/5), 1e-3)
   }
-  
-  return(betting_function)
+
+  # Reflect samples to mitigate bordes
+  extended <- c(-p_values, p_values, 2 - p_values)
+
+  # Ajustar KDE en [-1.5, 2.5] y luego recortar a [0,1]
+  kde <- stats::density(
+    x      = extended,
+    kernel = "gaussian",
+    bw     = h0,
+    n      = n_grid,
+    from   = -1.5,
+    to     = 2.5
+  )
+  in01  <- (kde$x >= 0 & kde$x <= 1)
+  x01   <- kde$x[in01]
+  y01   <- kde$y[in01]
+
+  # Normalizar para que ∫₀¹g(p)dp = 1
+  delta <- x01[2] - x01[1]
+  area  <- sum(y01) * delta
+  if (area > 0) {
+    y01 <- y01 / area
+  } else {
+    y01 <- rep(1, length(y01))
+    y01 <- y01 / (sum(y01) * delta)
+  }
+
+  # Devuelve una función estática g(p)
+  function(p) {
+    p <- as.numeric(p)
+    out <- rep(0, length(p))
+    inside <- which(p >= 0 & p <= 1)
+    if (length(inside)>0) {
+      out[inside] <- approx(x01, y01, xout = p[inside], rule = 2)$y
+    }
+    out
+  }
 }
 
-KDE_Betting_Func <- function(training_set, test_size, non_conformity_measure){
-  train_alphas <- numeric(test_size)
-  train_base <- training_set[1]
-  remaining_train <- training_set[2:test_size]
-  
-  # Calculate non-conformity measure of the elements in the training set
-  for (i in 1:(test_size-1)) {
-    train_alphas[i] <- non_conformity_measure(training_set[i], train_base)}
-  
-  # Calculate the p-values of the elements in the training set
-  train_p_values <- numeric(test_size - 1)
-  for (i in 1:(test_size-1)) {
-    alpha_i <- train_alphas[i]
-    U <- runif(1)
-    train_p_values[i] <- (sum(train_alphas[1:i] > alpha_i) + U * sum(train_alphas[1:i] == alpha_i)) / i}
-  
-  # Create the kernel density betting function based on the p-values of the training set
-  bf_precomputed_kde <- KDE(train_p_values)
-  
-  return(bf_precomputed_kde)
+# -------------------------------------------------------------------
+# 2) Precomputed KDE Betting Function
+# -------------------------------------------------------------------
+Precomputed_KDE_Betting_Func <- function(training_set,
+                                         calibration_data,
+                                         non_conformity_measure,
+                                         k = 1,
+                                         n_grid = 512) {
+  m <- length(calibration_data)
+  alphas  <- numeric(m)
+  pvals   <- numeric(m)
+
+  # 1) Calcular α₁…αₘ vs el mismo training_set
+  for (i in seq_len(m)) {
+    alphas[i] <- non_conformity_measure(calibration_data[i],
+                                        training_set, k)
+  }
+
+  # 2) Calcular p₁…pₘ de forma secuencial
+  for (i in seq_len(m)) {
+    greater <- sum(alphas[1:i] > alphas[i])
+    equal   <- sum(alphas[1:i] == alphas[i])
+    pvals[i] <- (greater + runif(1)*equal) / i
+  }
+
+  # 3) Ajustar KDE una sola vez
+  KDE(pvals, n_grid = n_grid)
 }
 
 
@@ -115,7 +132,7 @@ KDE_Betting_Func <- function(training_set, test_size, non_conformity_measure){
 
 ##ICM
 ```{r}
-IMC <- function(training_set, data, ncm, betting_function, k = 1, th = 1) {
+ICM <- function(training_set, data, ncm, betting_function, k = 1, th = 1) {
   # Barajar el conjunto de entrenamiento
   training_set <- sample(training_set)
   
@@ -163,11 +180,42 @@ IMC <- function(training_set, data, ncm, betting_function, k = 1, th = 1) {
 
 ```
 
+## Wrappers para facilidad en la implementacion
+```{r}
+ICM_knn_kde <- function(training_set,
+                                    calibration_data,
+                                    data,
+                                    k = 1,
+                                    n_grid = 512,
+                                    th = 1) {
+  # 1) Construir la betting function estática
+  kde_bf <- Precomputed_KDE_Betting_Func(
+    training_set           = training_set,
+    calibration_data       = calibration_data,
+    non_conformity_measure = Non_conformity_KNN,
+    k                       = k,
+    n_grid                  = n_grid
+  )
+
+  # 2) Llamar a tu ICM genérico
+  ICM(
+    training_set     = training_set,
+    data             = data,
+    ncm              = Non_conformity_KNN,
+    betting_function = kde_bf,
+    k                = k,
+    th               = th
+  )
+}
+```
+
+
+
 ## Generar datos
 ```{r}
 set.seed(123)
 theta <- 300
-training_size <- 1
+training_size <- 100
 datos <- c(rnorm(theta , mean = 0, sd = 1), rnorm(1000 - theta + 1, mean = 1, sd = 1))
 entrenamiento <- datos[1:training_size]
 serie_de_tiempo <- datos[(training_size + 1):length(datos)]
@@ -179,26 +227,45 @@ serie_de_tiempo <- datos[(training_size + 1):length(datos)]
 ```{r}
 plot(serie_de_tiempo, type = "l", main = "Serie Temporal con Punto de Cambio",
      xlab = "Tiempo", ylab = "Valor", col = "blue")
-abline(v = 300, col = "red", lty = 2, lwd = 2)
+abline(v = 300 - training_size, col = "red", lty = 2, lwd = 2)
 legend("topleft", legend = c("Serie", "Punto de Cambio"), 
        col = c("blue", "red"), lty = c(1, 2), lwd = c(1, 2))
 ```
-
+## KNN-Mixture
 ```{r}
-resultado <- IMC(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(1/2), th=2.8)
+set.seed(123)
+resultado <- ICM(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(100/2), th=2.8)
 #resultado
 ```
 
 ```{r}
-datos <- data.frame(
+plot(resultado$Cn, type = 'l')
+```
+
+
+## KNN-KDE
+```{r}
+set.seed(123)
+resultado_KDE <-ICM_knn_kde(entrenamiento, calibration_data = serie_de_tiempo[1:50], serie_de_tiempo[-(1:50)],k = ceiling(100/2),th = 3.2)
+```
+
+```{r}
+plot(resultado_KDE$Cn, type = 'l')
+abline(v=50)
+```
+
+
+## Grafica Usando Mixture betting function
+```{r}
+datos_mixt <- data.frame(
   tiempo = 1:length(datos),
   cn = datos
 )
 
-grafica_sinteticos<-ggplot(datos, aes(x = tiempo, y = cn)) +
+grafica_sinteticos<-ggplot(datos_mixt, aes(x = tiempo, y = cn)) +
   geom_line(color = "black") +
   # Agregar líneas verticales con color según tipo
-  geom_vline(aes(xintercept = resultado$change_point, color = "ICM"), linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = resultado$change_point + training_size, color = "ICM"), linetype = "dashed", linewidth = 1) +
   geom_vline(aes(xintercept = theta, color = "Punto de conocido"), linetype = "dashed", size = 1) +
   scale_color_manual(
     name = "Líneas",
@@ -219,6 +286,39 @@ grafica_sinteticos<-ggplot(datos, aes(x = tiempo, y = cn)) +
 ```{r}
 grafica_sinteticos
 ```
+## Grafica usando KDE Betting Function
+```{r}
+datos_kde <- data.frame(
+  tiempo = 1:length(datos),
+  cn = datos
+)
+
+grafica_sinteticos_KDE<-ggplot(datos_kde, aes(x = tiempo, y = cn)) +
+  geom_line(color = "black") +
+  # Agregar líneas verticales con color según tipo
+  geom_vline(aes(xintercept = resultado_KDE$change_point + 150, color = "ICM"), linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = theta, color = "Punto de conocido"), linetype = "dashed", size = 1) +
+  scale_color_manual(
+    name = "Líneas",
+    values = c("ICM" = "red", "Punto de conocido" = "blue")
+  ) +
+  labs(
+    title = "Deteccion de punto de cambio en datos sinteticos",
+    x = "Tiempo",
+    y = "Valores sinteticos",
+    color = "Líneas"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+resultado_KDE$change_point
+```
+
+```{r}
+grafica_sinteticos_KDE
+```
+
 
 
 ## Grafica de Cn para diferentes tamanos de entrenamiento 
@@ -234,7 +334,7 @@ for (m in c(1,2,3,4,5)) {
   entrenamiento <- datos[1:m]
   serie_de_tiempo <- datos[(m + 1):length(datos)]
   
-  resultado <- IMC(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(m/2))
+  resultado <- ICM(entrenamiento, serie_de_tiempo, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(m/2))
   
   resultados_Cn[[paste0("m=", m)]] <- resultado$Cn
 }
@@ -316,7 +416,7 @@ montecarlo_multi <- function(n_sim      = 100,
       k <- ceiling(m / 2)
       
       # ejecutar ICM
-      Cn <- IMC(datos_ent,
+      Cn <- ICM(datos_ent,
                 datos_rem,
                 ncm              = ncm_fun,
                 betting_function = bet_fun,
@@ -455,7 +555,7 @@ ggplot(serie, aes(x = fecha, y = valor)) +
 entrenamiento_achicaya <- serie %>% slice(1:75)
 serie_de_tiempo_anchicaya <- serie %>% slice(76:n())
 
-Cn <- IMC(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(75/2))
+Cn <- ICM(entrenamiento_achicaya$valor, serie_de_tiempo_anchicaya$valor, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(75/2))
 ```
 
 
@@ -623,7 +723,7 @@ entrenamiento_baseball <- mlb_diffs$hr_rate_diff[1:10]
 serie_de_tiempo_baseball <- mlb_diffs$hr_rate_diff[11:length(mlb_diffs$hr_rate_diff)]
 
 
-resultado <- IMC(entrenamiento_baseball, serie_de_tiempo_baseball, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(10/2), th=3)
+resultado <- ICM(entrenamiento_baseball, serie_de_tiempo_baseball, ncm = Non_conformity_KNN, betting_function = Mixture_Betting_Func, k = ceiling(10/2), th=3)
 resultado
 ```
 ```{r}
