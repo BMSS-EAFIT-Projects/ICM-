@@ -1,0 +1,109 @@
+---
+title: "Informe ICM"
+output: html_document
+date: "2025-06-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+# Si quisieras recrearlo todo “dinámicamente”:
+source("../R/non_conformity_measures.R")
+source("../R/betting_functions.R")
+source("../R/icm_method.R")
+source("../R/montecarlo_sims.R")
+kde_bf_fixed <- readRDS("../data/kde_bf_fixed.rds")
+```
+
+# 1. Introduccion
+En este RMD vamos a recreara he implementar los procesos del paper guia Inductive Conformal Martingales for Change-Point Detection
+
+# 2. Graficas seccion 5 paper
+```{r}
+df_all_methods <- readRDS("../data/resultados_sim.rds")
+```
+
+```{r}
+df_CBF <- df_all_methods %>% filter(Method == "Constant BF")
+ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay)) +
+  geom_line(color = "red", size = 1) +
+  geom_point(color = "red", size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = "(P[0](tau <= theta)",
+    y     = "log[10](1 + E[1][tau - theta ~|~ tau > theta]",
+    title = "ICM con Constant BF"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold")
+  )
+```
+```{r}
+df_MBF <- df_all_methods %>% filter(Method == "Mixture BF")
+ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "blue", size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = "(P[0](tau <= theta)",
+    y     = "(log[10](1 + E[1][tau - theta ~|~ tau > theta])",
+    title = "ICM con Mixture BF"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold")
+  )
+```
+
+```{r}
+df_KDEF <- df_all_methods %>% filter(Method == "Precomputed KDE BF")
+ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay)) +
+  geom_line(color = "darkgreen", size = 1) +
+  geom_point(color = "darkgreen", size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = "P[0](tau <= theta)",
+    y     = "log[10](1 + E[1][tau - theta ~|~ tau > theta])",
+    title = "ICM con Precomputed KDE BF"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold")
+  )
+```
+
+
+
+
