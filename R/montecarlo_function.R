@@ -98,3 +98,55 @@ montecarlo_ICM <- function(n_sim           = 200,
   
   return(df_res)
 }
+
+
+montecarlo_oraculo <- function(n_sim        = 200,
+                               h_vals       = seq(1, 6, 0.5),
+                               theta_stream = 100,
+                               mu1          = 1,
+                               m            = 200,
+                               detector_fn,
+                               detector_label,
+                               ...) {
+  n_stream <- 1000
+  delays       <- matrix(NA, nrow = n_sim, ncol = length(h_vals))
+  false_alarms <- matrix(0,  nrow = n_sim, ncol = length(h_vals))
+  
+  for (sim in seq_len(n_sim)) {
+    # 1. Generar stream sin conjunto de entrenamiento explícito
+    cat("Simulación", sim, "/", n_sim, "\n")
+    flush.console()
+    stream <- numeric(n_stream)
+    for (i in seq_len(n_stream)) {
+      stream[i] <- if (i < theta_stream) rnorm(1, 0, 1) else rnorm(1, mu1, 1)
+    }
+    
+    for (j in seq_along(h_vals)) {
+      h <- h_vals[j]
+      result <- detector_fn(z = stream, threshold = h, ...)
+      
+      tau <- result$tau
+      if (is.na(tau)) {
+        false_alarms[sim, j] <- 0
+        delays[sim, j]       <- NA
+      } else if (tau < theta_stream) {
+        false_alarms[sim, j] <- 1
+        delays[sim, j]       <- NA
+      } else {
+        false_alarms[sim, j] <- 0
+        delays[sim, j]       <- tau - theta_stream
+      }
+    }
+  }
+  
+  # Resultado final
+  data.frame(
+    theta_stream    = theta_stream,
+    mu1             = mu1,
+    threshold       = h_vals,
+    p_false_alarm   = colMeans(false_alarms),
+    mean_delay      = colMeans(delays, na.rm = TRUE),
+    Method          = detector_label
+  ) %>%
+    mutate(log_delay = log10(1 + mean_delay))
+}

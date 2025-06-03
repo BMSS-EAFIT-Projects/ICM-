@@ -12,7 +12,11 @@ Constant_BF <- function(p){
 
 #Mixture BF
 Mixture_BF <- function(p) {
-  return((p*log(p) - p + 1)/(p*(log(p))^2))
+  integrand <- function(epsilon) {
+    epsilon * p^(epsilon - 1)}
+  
+  result <- integrate(integrand, lower = 0, upper = 1)
+  return(result$value)
 }
 
 #KDE BF

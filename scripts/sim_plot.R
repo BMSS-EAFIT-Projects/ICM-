@@ -20,7 +20,7 @@ para_metodo <- function(metodo, color, filename_pdf) {
     theme_minimal(base_size = 13) +
     labs(
       x     = expression(P[0](tau <= theta)),
-      y     = expression(log[10](1 + E[1][tau - theta ~|~ tau > theta])),
+      y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
       title = paste("ICM con", metodo),
       subtitle = "Paneles: θ_stream = 100,200 y μ₁ = 1,1.5,2"
     ) +
@@ -47,3 +47,6 @@ if (!dir.exists("outputs")) dir.create("outputs")
 para_metodo("Constant BF",       "red",         "fig_constantBF.pdf")
 para_metodo("Mixture BF",        "blue",        "fig_mixtureBF.pdf")
 para_metodo("Precomputed KDE BF","darkgreen",   "fig_precomputedKDEBF.pdf")
+para_metodo("CUSUM Oracle",     "purple",   "fig_oraculo_CUSUM.pdf")
+para_metodo("S-R Oracle",       "orange",   "fig_oraculo_SR.pdf")
+para_metodo("Posterior Oracle", "brown",    "fig_oraculo_Posterior.pdf")

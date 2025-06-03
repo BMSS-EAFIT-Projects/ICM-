@@ -2,7 +2,8 @@
 source("R/non_conformity_measures.R")
 source("R/betting_functions.R")
 source("R/icm_method.R")
-source("R/montecarlo_sims.R")
+source("R/montecarlo_function.R")
+source("R/oracles.R")
 
 # 2) Cargar la betting function precomputada (Generada por calibrar_kde.R)
 kde_bf_fixed <- readRDS("data/kde_bf_fixed.rds")
@@ -53,7 +54,40 @@ for (theta_s in theta_vals) {
       k            = k_par
     ) %>% mutate(Method = "Precomputed KDE BF")
     
-    combined <- bind_rows(df_CBF, df_MBF, df_KDEF) %>%
+    df_CUSUM <- montecarlo_oraculo(
+      n_sim        = n_sim,
+      h_vals       = h_vals,
+      theta_stream = theta_s,
+      mu1          = mu1_s,
+      m            = m,
+      detector_fn  = cusum_oracle,
+      detector_label = "CUSUM Oracle"
+    ) %>% mutate(Method = "CUSUM Oracle")
+    
+    df_SR <- montecarlo_oraculo(
+      n_sim        = n_sim,
+      h_vals       = h_vals,
+      theta_stream = theta_s,
+      mu1          = mu1_s,
+      m            = m,
+      detector_fn  = sr_oracle,
+      detector_label = "S-R Oracle"
+    ) %>% mutate(Method = "S-R Oracle")
+    
+    df_POST <- montecarlo_oraculo(
+      n_sim        = n_sim,
+      h_vals       = h_vals,
+      theta_stream = theta_s,
+      mu1          = mu1_s,
+      m            = m,
+      detector_fn  = posterior_oracle,
+      detector_label = "Posterior Oracle",
+      p = 1 / 100
+    ) %>% mutate(Method = "Posterior Oracle")
+    
+    df_oracles <- bind_rows(df_CUSUM, df_SR, df_POST)
+    
+    combined <- bind_rows(df_CBF, df_MBF, df_KDEF, df_oracles) %>%
       mutate(
         theta_stream = factor(theta_stream, levels = theta_vals),
         mu1          = factor(mu1,        levels = mu1_vals),
@@ -67,3 +101,4 @@ for (theta_s in theta_vals) {
 # 5) Concatenar y salvar
 df_all_methods <- bind_rows(all_results, .id = "scenario_key")
 saveRDS(df_all_methods, file = "data/resultados_sim.rds")
+cat("✅ Simulación completada exitosamente.\n")

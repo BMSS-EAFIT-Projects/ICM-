@@ -11,27 +11,91 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(dplyr)
 library(ggplot2)
+library(tidyr)
 # Si quisieras recrearlo todo “dinámicamente”:
 source("../R/non_conformity_measures.R")
 source("../R/betting_functions.R")
 source("../R/icm_method.R")
-source("../R/montecarlo_sims.R")
+source("../R/montecarlo_function.R")
 kde_bf_fixed <- readRDS("../data/kde_bf_fixed.rds")
 ```
 
 # 1. Introduccion
 En este RMD vamos a recreara he implementar los procesos del paper guia Inductive Conformal Martingales for Change-Point Detection
 
-# 2. Graficas seccion 5 paper
+# 2. Grafica 1 paper guia
+```{r}
+df_fig_1 <- readRDS("../data/figura1_icm.rds")
+```
+
+```{r}
+ggplot(df_fig_1, aes(x = time)) +
+  geom_line(aes(y = Cn_1NN, color = "ICM con 1NN")) +
+  geom_line(aes(y = Cn_LR,  color = "ICM con LR")) +
+  geom_line(aes(y = Cn_wcp,  color = "ICM sin CP")) +
+  scale_color_manual(
+    values = c("ICM con 1NN" = "#1f77b4",  # dark blue
+               "ICM con LR"  = "#2ca02c",  # dark green
+               "ICM sin CP" = "#d62728")  # dark red 
+  ) +
+  labs(
+    title = "Figura 1",
+    x = expression("Time, " * n),
+    y = expression(C[n]),
+    color = "Método"
+  ) +
+  geom_vline(xintercept = 500, linetype = "dashed", color = "#FFD700", size = 1) +
+  theme_minimal(base_size = 13)
+```
+# 3. Grafica 2 paper guia
+```{r}
+df_fig_2 <- readRDS("../data/figura2_icm.rds")
+```
+
+```{r}
+df_long <- pivot_longer(df_fig_2, -time, names_to = "curva", values_to = "Cn")
+
+color_map <- c(
+  "m_1"      = "#1f77b4",
+  "m_2"      = "#2ca02c",
+  "m_3"      = "#d62728",
+  "m_4"      = "#9467bd",
+  "m_5"      = "#ff7f0e",
+  "con_cp"   = "#bcbd22"
+)
+
+ggplot(df_long, aes(x = time, y = Cn, color = curva)) +
+  geom_line(size = 1) +
+  scale_color_manual(values = color_map,
+                     labels = c(
+                       "m_1" = "Train set size m = 1",
+                       "m_2" = "Train set size m = 2",
+                       "m_3" = "Train set size m = 3",
+                       "m_4" = "Train set size m = 4",
+                       "m_5" = "Train set size m = 5",
+                       "con_cp" = "With change-point, m = 1"
+                     )) +
+  labs(
+    title = "Figura 2 - ICM con y sin cambio",
+    x = "Time, n",
+    y = expression(C[n]),
+    color = "Curva"
+  ) +
+  geom_vline(xintercept = 500, linetype = "dashed", color = "#FFD700", size = 1) +
+  theme_minimal(base_size = 13)
+```
+
+
+# 4. Graficas comaprativas seccion 5 paper guia
 ```{r}
 df_all_methods <- readRDS("../data/resultados_sim.rds")
 ```
 
 ```{r}
-df_CBF <- df_all_methods %>% filter(Method == "Constant BF")
-ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay)) +
-  geom_line(color = "red", size = 1) +
-  geom_point(color = "red", size = 1) +
+df_CBF <- df_all_methods %>% filter(Method %in% c("Constant BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
   facet_grid(rows = vars(theta_stream), cols = vars(mu1),
              labeller = labeller(
                theta_stream = function(x) paste0("θ = ", x),
@@ -39,9 +103,11 @@ ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay)) +
              )) +
   theme_minimal(base_size = 13) +
   labs(
-    x     = "(P[0](tau <= theta)",
-    y     = "log[10](1 + E[1][tau - theta ~|~ tau > theta]",
-    title = "ICM con Constant BF"
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: Constant BF vs Oráculos",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
   ) +
   theme(
     strip.text.x     = element_text(size = 12, face = "bold"),
@@ -49,14 +115,15 @@ ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay)) +
     panel.spacing    = unit(0.6, "lines"),
     axis.text        = element_text(size = 10),
     axis.title       = element_text(size = 12, face = "bold"),
-    plot.title       = element_text(size = 14, face = "bold")
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "bottom"
   )
 ```
 ```{r}
-df_MBF <- df_all_methods %>% filter(Method == "Mixture BF")
-ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay)) +
-  geom_line(color = "blue", size = 1) +
-  geom_point(color = "blue", size = 1) +
+df_MBF <- df_all_methods %>% filter(Method %in% c("Mixture BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
   facet_grid(rows = vars(theta_stream), cols = vars(mu1),
              labeller = labeller(
                theta_stream = function(x) paste0("θ = ", x),
@@ -64,9 +131,11 @@ ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay)) +
              )) +
   theme_minimal(base_size = 13) +
   labs(
-    x     = "(P[0](tau <= theta)",
-    y     = "(log[10](1 + E[1][tau - theta ~|~ tau > theta])",
-    title = "ICM con Mixture BF"
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: Constant BF vs Oráculos",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
   ) +
   theme(
     strip.text.x     = element_text(size = 12, face = "bold"),
@@ -74,15 +143,16 @@ ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay)) +
     panel.spacing    = unit(0.6, "lines"),
     axis.text        = element_text(size = 10),
     axis.title       = element_text(size = 12, face = "bold"),
-    plot.title       = element_text(size = 14, face = "bold")
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "bottom"
   )
 ```
 
 ```{r}
-df_KDEF <- df_all_methods %>% filter(Method == "Precomputed KDE BF")
-ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay)) +
-  geom_line(color = "darkgreen", size = 1) +
-  geom_point(color = "darkgreen", size = 1) +
+df_KDEF <- df_all_methods %>% filter(Method %in% c("Precomputed KDE BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
   facet_grid(rows = vars(theta_stream), cols = vars(mu1),
              labeller = labeller(
                theta_stream = function(x) paste0("θ = ", x),
@@ -90,9 +160,11 @@ ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay)) +
              )) +
   theme_minimal(base_size = 13) +
   labs(
-    x     = "P[0](tau <= theta)",
-    y     = "log[10](1 + E[1][tau - theta ~|~ tau > theta])",
-    title = "ICM con Precomputed KDE BF"
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: Constant BF vs Oráculos",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
   ) +
   theme(
     strip.text.x     = element_text(size = 12, face = "bold"),
@@ -100,7 +172,8 @@ ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay)) +
     panel.spacing    = unit(0.6, "lines"),
     axis.text        = element_text(size = 10),
     axis.title       = element_text(size = 12, face = "bold"),
-    plot.title       = element_text(size = 14, face = "bold")
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "bottom"
   )
 ```
 

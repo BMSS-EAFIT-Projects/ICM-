@@ -5,8 +5,8 @@ ICM <- function(training_set,
                 stream_data,
                 non_conformity_measure,
                 betting_function,
-                k = 1,
-                th = 1) {
+                th = 1,
+                ...) {
   # 1) Mezclamos el training_set para garantizar exchangeability
   training_set <- sample(training_set)
   
@@ -23,7 +23,7 @@ ICM <- function(training_set,
   for (i in seq_len(n)) {
     # --- (a) Non-conformity score ω_i con respecto a 'training_set' fijo
     xi <- stream_data[i]
-    alphas[i] <- non_conformity_measure(xi, training_set, k)
+    alphas[i] <- do.call(non_conformity_measure, c(list(xi = xi, training_set = training_set), list(...)))
     
     # --- (b) p-value p_i según (1) en función de alphas[1:i]
     greater <- sum(alphas[1:i] > alphas[i])
