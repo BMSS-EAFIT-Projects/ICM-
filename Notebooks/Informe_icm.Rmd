@@ -92,7 +92,7 @@ df_all_methods <- readRDS("../data/resultados_sim.rds")
 ```
 
 ```{r}
-df_CBF <- df_all_methods %>% filter(Method %in% c("Constant BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN + Constant BF","LR + Constant BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -120,7 +120,7 @@ ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   )
 ```
 ```{r}
-df_MBF <- df_all_methods %>% filter(Method %in% c("Mixture BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+df_MBF <- df_all_methods %>% filter(Method %in% c("KNN + Mixture BF", "LR + Mixture BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
