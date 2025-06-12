@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggplot2)
 library(tidyr)
+library(plotly)
 # Si quisieras recrearlo todo “dinámicamente”:
 source("../R/non_conformity_measures.R")
 source("../R/betting_functions.R")
@@ -91,6 +92,7 @@ ggplot(df_long, aes(x = time, y = Cn, color = curva)) +
 df_all_methods <- readRDS("../data/resultados_sim.rds")
 ```
 
+#CONSTANT BF 2D
 ```{r}
 df_CBF <- df_all_methods %>% filter(Method %in% c("KNN + Constant BF","LR + Constant BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
@@ -101,6 +103,7 @@ ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
                theta_stream = function(x) paste0("θ = ", x),
                mu1          = function(x) paste0("μ₁ = ", x)
              )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
   theme_minimal(base_size = 13) +
   labs(
     x     = expression(P[0](tau <= theta)),
@@ -119,6 +122,33 @@ ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
     legend.position  = "bottom"
   )
 ```
+
+#CONSTANT BF 3D
+```{r}
+plot_ly(
+  data = df_CBF,
+  x = ~p_false_alarm,
+  y = ~log_delay,
+  z = ~threshold,                  # tercer eje
+  color = ~Method,                 # agrupa y colorea por método
+  colors = RColorBrewer::brewer.pal(5, "Set1"),
+  type = "scatter3d",
+  mode = "lines+markers",          # líneas conectan puntos + marcadores
+  marker = list(size = 3),
+  line   = list(width = 2)
+) %>%
+layout(
+  title = "Comparación 3D: KDE PRECOMPUTED BF vs Oráculos",
+  scene = list(
+    xaxis = list(title = expression(P[0](tau <= theta))),
+    yaxis = list(title = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta)))),
+    zaxis = list(title = "threshold")
+  ),
+  legend = list(title = list(text = "Método"))
+)
+```
+
+# MIXTURE BF 2D
 ```{r}
 df_MBF <- df_all_methods %>% filter(Method %in% c("KNN + Mixture BF", "LR + Mixture BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
@@ -129,11 +159,12 @@ ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
                theta_stream = function(x) paste0("θ = ", x),
                mu1          = function(x) paste0("μ₁ = ", x)
              )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
   theme_minimal(base_size = 13) +
   labs(
     x     = expression(P[0](tau <= theta)),
     y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
-    title = "Comparación: Constant BF vs Oráculos",
+    title = "Comparación: Mixture BF vs Oráculos",
     subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
     color = "Método"
   ) +
@@ -147,9 +178,34 @@ ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
     legend.position  = "bottom"
   )
 ```
-
+# MIXTURE BF 3D
 ```{r}
-df_KDEF <- df_all_methods %>% filter(Method %in% c("Precomputed KDE BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+plot_ly(
+  data = df_MBF,
+  x = ~p_false_alarm,
+  y = ~log_delay,
+  z = ~threshold,                  # tercer eje
+  color = ~Method,                 # agrupa y colorea por método
+  colors = RColorBrewer::brewer.pal(5, "Set1"),
+  type = "scatter3d",
+  mode = "lines+markers",          # líneas conectan puntos + marcadores
+  marker = list(size = 3),
+  line   = list(width = 2)
+) %>%
+layout(
+  title = "Comparación 3D: KDE PRECOMPUTED BF vs Oráculos",
+  scene = list(
+    xaxis = list(title = expression(P[0](tau <= theta))),
+    yaxis = list(title = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta)))),
+    zaxis = list(title = "threshold")
+  ),
+  legend = list(title = list(text = "Método"))
+)
+```
+
+# KDE PRECOMPUTADA 2D
+```{r}
+df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN + Precomputed KDE BF", "LR + Precomputed KDE BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -158,11 +214,12 @@ ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
                theta_stream = function(x) paste0("θ = ", x),
                mu1          = function(x) paste0("μ₁ = ", x)
              )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
   theme_minimal(base_size = 13) +
   labs(
     x     = expression(P[0](tau <= theta)),
     y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
-    title = "Comparación: Constant BF vs Oráculos",
+    title = "Comparación: KDE PRECOMPUTED BF vs Oráculos",
     subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
     color = "Método"
   ) +
@@ -177,6 +234,84 @@ ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   )
 ```
 
+#KDE PRECOMPUTED 3D
+```{r}
+plot_ly(
+  data = df_KDEF,
+  x = ~p_false_alarm,
+  y = ~log_delay,
+  z = ~threshold,                  # tercer eje
+  color = ~Method,                 # agrupa y colorea por método
+  colors = RColorBrewer::brewer.pal(5, "Set1"),
+  type = "scatter3d",
+  mode = "lines+markers",          # líneas conectan puntos + marcadores
+  marker = list(size = 3),
+  line   = list(width = 2)
+) %>%
+layout(
+  title = "Comparación 3D: KDE PRECOMPUTED BF vs Oráculos",
+  scene = list(
+    xaxis = list(title = expression(P[0](tau <= theta))),
+    yaxis = list(title = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta)))),
+    zaxis = list(title = "threshold")
+  ),
+  legend = list(title = list(text = "Método"))
+)
+```
 
+#Benchmarks of the ICM methods
+```{r}
+bench_data <- readRDS("../data/benchmarks_raw.rds")
+```
 
+# time manipulation
+```{r}
+bench_data <- bench_data %>%
+  mutate(time_ms = time / 1e6)
+```
+
+# summary
+```{r}
+bench_summary <- bench_data %>%
+  group_by(expr, scenario) %>%
+  summarise(
+    mean_ms   = mean(time_ms),
+    median_ms = median(time_ms),
+    sd_ms     = sd(time_ms),
+    .groups   = "drop"
+  )
+```
+
+#mean times
+```{r}
+ggplot(bench_summary, aes(x = expr, y = mean_ms, fill = expr)) +
+  geom_col(width = 0.6) +
+  facet_wrap(~ scenario, scales = "free_x", nrow = 1) +
+  labs(
+    x = "Método",
+    y = "Tiempo medio (ms)",
+    title = "Coste computacional medio por método y escenario"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x    = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+```
+#raw times
+```{r}
+ggplot(bench_data, aes(x = expr, y = time_ms, color = expr)) +
+  geom_boxplot(outlier.size = 1) +
+  facet_wrap(~ scenario, scales = "free_x", nrow = 1) +
+  labs(
+    x = "Método",
+    y = "Tiempo (ms)",
+    title = "Distribución de tiempos de ejecución"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.x    = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+```
 
