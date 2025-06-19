@@ -1,20 +1,19 @@
 #All the functions here correspond to Betting Functions
 
 #Constant BF
-Constant_BF <- function(p){
-  if (p>= 0 && p<0.5){
-    val<-1.5
-  }
-  else if(p>= 0.5 && p<=1){
-    val<- 0.5
-  }
+Constant_BF <- function(p_values, new_p, i, ...) {
+  if (new_p >= 0 && new_p < 0.5) {
+    return(1.5)
+  } else if (new_p >= 0.5 && new_p <= 1) {
+    return(0.5)
+  } 
 }
 
 #Mixture BF
-Mixture_BF <- function(p) {
+Mixture_BF <- function(p_values, new_p, i, ...) {
   integrand <- function(epsilon) {
-    epsilon * p^(epsilon - 1)}
-  
+    epsilon * new_p^(epsilon - 1)
+  }
   result <- integrate(integrand, lower = 0, upper = 1)
   return(result$value)
 }
@@ -93,4 +92,42 @@ Precomputed_KDE_BF <- function(training_set,
   
   # 3) Ajustar KDE una sola vez
   KDE(pvals, n_grid = n_grid)
+}
+
+#HISTOGRAM BF
+histogram_betting_function <- function(p_values, new_p, i, num_bins = 10, ...) {
+  if (length(p_values) == 0) return(1)  # No apostar si no hay historial
+  
+  breaks <- seq(0, 1, length.out = num_bins + 1)
+  counts <- hist(p_values, breaks = breaks, plot = FALSE)$counts
+  bin_index <- findInterval(new_p, breaks, rightmost.closed = TRUE)
+  density <- if (sum(counts) == 0) 1 else (counts[bin_index] / sum(counts)) * num_bins
+  return(max(density, 1e-10))
+}
+
+#CAUTIOUS BF
+cautious_wrapper <- function(bf_function,             # función de apuesta base: g(p)
+                             p_values,                # vector de p-valores previos
+                             s_values,                # vector de martingala previa
+                             new_p,                   # nuevo p-valor a transformar
+                             W = 100,                 # tamaño de la ventana
+                             epsilon = 100,           # umbral de cambio
+                             ...) {                   # argumentos adicionales para bf_function
+  
+  n <- length(s_values)
+  
+  # Si no hay suficientes valores previos, no apostar aún
+  if (n < W) return(1)
+  
+  # Calcular el ratio de crecimiento reciente
+  s_window <- s_values[(n - W + 1):n]
+  s_ratio <- s_values[n] / min(s_window)
+  
+  # Si no hay suficiente evidencia para apostar, no apuestes (retorna 1)
+  if (s_ratio <= epsilon) {
+    return(1)
+  } else {
+    # Si hay evidencia, usa la función base con los mismos argumentos
+    return(bf_function(p_values = p_values, new_p = new_p, ...))
+  }
 }
