@@ -1,6 +1,8 @@
 #All the functions here correspond to Non conformity measures
 
 #NCM_KNN
+#refer to this article "Inductive conforma martingales for change point detection"
+
 Non_conformity_KNN <- function(xi, training_set, k = 1) {
   dist <- abs(xi - training_set)
   NN <- sort(dist)[1:k]
@@ -8,6 +10,8 @@ Non_conformity_KNN <- function(xi, training_set, k = 1) {
 }
 
 #Likelyhood ratio
+#refer to this article "Inductive conforma martingales for change point detection".
+
 Non_conformity_LNR <- function(xi, training_set, mu_r = 1) {
   # train_set: vector fijo con datos anteriores a z_1
   mu0_hat <- mean(training_set)

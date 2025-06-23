@@ -1,6 +1,8 @@
 #All the functions here correspond to Betting Functions
 
 #Constant BF
+#refer to this araticle "Inductive conforma martingales for change point detection".
+
 Constant_BF <- function(p_values, new_p, i, ...) {
   if (new_p >= 0 && new_p < 0.5) {
     return(1.5)
@@ -10,6 +12,8 @@ Constant_BF <- function(p_values, new_p, i, ...) {
 }
 
 #Mixture BF
+#refer to this article "Inductive conforma martingales for change point detection".
+
 Mixture_BF <- function(p_values, new_p, i, ...) {
   integrand <- function(epsilon) {
     epsilon * new_p^(epsilon - 1)
@@ -68,6 +72,8 @@ KDE <- function(p_values, n_grid = 512) {
 }
 
 #PRECOMPUTED KDE BF
+#refer to this article "Inductive conforma martingales for change point detection".
+
 Precomputed_KDE_BF <- function(training_set,
                                          calibration_data,
                                          non_conformity_measure,
@@ -95,6 +101,8 @@ Precomputed_KDE_BF <- function(training_set,
 }
 
 #HISTOGRAM BF
+#refer to this article "A histogram based betting function for conformal martingales".
+
 histogram_betting_function <- function(p_values, new_p, i, num_bins = 10, ...) {
   if (length(p_values) == 0) return(1)  # No apostar si no hay historial
   

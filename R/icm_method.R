@@ -1,6 +1,8 @@
 #Basic method of ICM
 
 #icm method
+#refer to this article "Inductive conforma martingales for change point detection".
+
 ICM <- function(training_set,
                 stream_data,
                 non_conformity_measure,
@@ -49,6 +51,7 @@ ICM <- function(training_set,
 
 
 #ICM CAUTIOUS
+#refer to this method in this article "A betting function for addresing concept drift with conformal martingales"
 
 ICM_CBF <- function(training_set,
                     stream_data,
