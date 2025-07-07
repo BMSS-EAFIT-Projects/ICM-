@@ -3,7 +3,7 @@
 #NCM_KNN
 #refer to this article "Inductive conforma martingales for change point detection"
 
-Non_conformity_KNN <- function(xi, training_set, k = 1) {
+Non_conformity_KNN <- function(xi, training_set, k = 1,...) {
   dist <- abs(xi - training_set)
   NN <- sort(dist)[1:k]
   return(mean(NN))
@@ -12,7 +12,7 @@ Non_conformity_KNN <- function(xi, training_set, k = 1) {
 #Likelyhood ratio
 #refer to this article "Inductive conforma martingales for change point detection".
 
-Non_conformity_LNR <- function(xi, training_set, mu_r = 1) {
+Non_conformity_LNR <- function(xi, training_set, mu_r = 1, k=NULL,...) {
   # train_set: vector fijo con datos anteriores a z_1
   mu0_hat <- mean(training_set)
   sigma_f1 <- sqrt(1 + 1)
@@ -22,3 +22,13 @@ Non_conformity_LNR <- function(xi, training_set, mu_r = 1) {
   
   return(numerator / denominator)
 }
+
+#MAD
+Non_conformity_MAD <- function(xi, training_set, K=NULL,...){
+  median_data <- median(training_set)
+  zscore <- abs(xi - median_data)
+  return(zscore)
+}
+
+
+ 

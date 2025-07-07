@@ -18,7 +18,7 @@ stream_data_wcp <- z_wcp[-(1:training_set_size)]
 
 res_1nn <- ICM(training_set, stream_data, Non_conformity_KNN, Mixture_BF, k=1)
 res_ln <- ICM(training_set, stream_data, Non_conformity_LNR, Constant_BF)
-res_wcp <- ICM(training_set_wcp, stream_data_wcp, Non_conformity_KNN, Mixture_BF)
+res_wcp <- ICM(training_set_wcp, stream_data_wcp, Non_conformity_KNN, Mixture_BF, k=1)
 
 df_fig_1 <- data.frame(
   time = 1:length(res_1nn$Cn),

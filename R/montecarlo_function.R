@@ -7,9 +7,10 @@ montecarlo_ICM <- function(n_sim           = 200,
                            m               = 200,
                            ncm_fun         = Non_conformity_KNN,
                            bet_fun         = Constant_BF,
-                           k               = NULL) {
+                           k               = NULL,
+                           params_bf       = list()) {
   # Si k no se especifica, lo ponemos = ceiling(m/2)
-  if (is.null(k)) k <- ceiling(m / 2)
+  if (is.null(k)) k <- 7
   
   # Longitud del “stream” que ve ICM
   n_stream <- 1000
@@ -51,6 +52,7 @@ montecarlo_ICM <- function(n_sim           = 200,
       stream_data           = stream,
       non_conformity_measure = ncm_fun,
       betting_function      = bet_fun,
+      params_bf             = params_bf,
       k                     = k
     )
     Cn_vals <- out_ICM$Cn
@@ -149,4 +151,80 @@ montecarlo_oraculo <- function(n_sim        = 200,
     Method          = detector_label
   ) %>%
     mutate(log_delay = log10(1 + mean_delay))
+}
+
+#Montecarlo para ICM_CBF
+montecarlo_ICM_CBF <- function(n_sim           = 200,
+                               h_vals          = seq(1, 6, 0.5),
+                               theta_stream    = 100,
+                               mu1             = 1,
+                               m               = 200,
+                               ncm_fun         = Non_conformity_KNN,
+                               bet_fun         = Constant_BF,
+                               k               = NULL,
+                               W               = 100,
+                               epsilon         = 100,
+                               params_bf       = list()) {
+  if (is.null(k)) k <- 7
+  n_stream <- 1000
+  epsilon_global <- m + theta_stream
+  
+  delays <- matrix(NA, nrow = n_sim, ncol = length(h_vals))
+  false_alarms <- matrix(0,  nrow = n_sim, ncol = length(h_vals))
+  
+  for (sim in seq_len(n_sim)) {
+    training_set <- rnorm(m, mean = 0, sd = 1)
+    
+    stream <- numeric(n_stream)
+    for (i in seq_len(n_stream)) {
+      if (i < theta_stream) {
+        stream[i] <- rnorm(1, mean = 0, sd = 1)
+      } else {
+        stream[i] <- rnorm(1, mean = mu1, sd = 1)
+      }
+    }
+    
+    out_ICM_CBF <- ICM_CBF(
+      training_set          = training_set,
+      stream_data           = stream,
+      non_conformity_measure = ncm_fun,
+      betting_function      = bet_fun,
+      W                     = W,
+      epsilon               = epsilon,
+      params_bf             = params_bf,
+      k                     = k
+    )
+    S_vals <- out_ICM_CBF$S_vals
+    
+    pos_change <- theta_stream
+    for (j in seq_along(h_vals)) {
+      h <- h_vals[j]
+      tau <- which(S_vals > h)[1]
+      
+      if (is.na(tau)) {
+        false_alarms[sim, j] <- 0
+        delays[sim, j]       <- NA
+      } else if (tau < pos_change) {
+        false_alarms[sim, j] <- 1
+        delays[sim, j]       <- NA
+      } else {
+        false_alarms[sim, j] <- 0
+        delays[sim, j]       <- tau - pos_change
+      }
+    }
+  }
+  
+  p_FA       <- colMeans(false_alarms)
+  mean_delay <- colMeans(delays, na.rm = TRUE)
+  
+  df_res <- data.frame(
+    theta_stream    = theta_stream,
+    mu1             = mu1,
+    threshold       = h_vals,
+    p_false_alarm   = p_FA,
+    mean_delay      = mean_delay
+  ) %>%
+    mutate(log_delay = log10(1 + mean_delay))
+  
+  return(df_res)
 }

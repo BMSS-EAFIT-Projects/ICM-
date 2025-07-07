@@ -94,7 +94,7 @@ df_all_methods <- readRDS("../data/resultados_sim.rds")
 
 #CONSTANT BF 2D
 ```{r}
-df_CBF <- df_all_methods %>% filter(Method %in% c("KNN + Constant BF","LR + Constant BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM","LR Constant BF + ICM","MAD Constant BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -150,7 +150,7 @@ layout(
 
 # MIXTURE BF 2D
 ```{r}
-df_MBF <- df_all_methods %>% filter(Method %in% c("KNN + Mixture BF", "LR + Mixture BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -205,7 +205,7 @@ layout(
 
 # KDE PRECOMPUTADA 2D
 ```{r}
-df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN + Precomputed KDE BF", "LR + Precomputed KDE BF","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -258,6 +258,38 @@ layout(
   legend = list(title = list(text = "Método"))
 )
 ```
+#Histograma 2D
+```{r}
+df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM", "LR Histogram BF + ICM", "MAD Histogram BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: HISTOGRAM BF vs Oráculos",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "bottom"
+  )
+```
+
+
 
 #Benchmarks of the ICM methods
 ```{r}

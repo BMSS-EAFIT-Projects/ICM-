@@ -75,29 +75,33 @@ KDE <- function(p_values, n_grid = 512) {
 #refer to this article "Inductive conforma martingales for change point detection".
 
 Precomputed_KDE_BF <- function(training_set,
-                                         calibration_data,
-                                         non_conformity_measure,
-                                         k = 1,
-                                         n_grid = 512) {
+                               calibration_data,
+                               non_conformity_measure,
+                               k = 1,
+                               n_grid = 512) {
   m <- length(calibration_data)
   alphas  <- numeric(m)
   pvals   <- numeric(m)
   
-  # 1) Calcular α₁…αₘ vs el mismo training_set
+  # 1) Calcular α₁…αₘ
   for (i in seq_len(m)) {
-    alphas[i] <- non_conformity_measure(calibration_data[i],
-                                        training_set, k)
+    alphas[i] <- non_conformity_measure(calibration_data[i], training_set, k)
   }
   
   # 2) Calcular p₁…pₘ de forma secuencial
   for (i in seq_len(m)) {
     greater <- sum(alphas[1:i] > alphas[i])
     equal   <- sum(alphas[1:i] == alphas[i])
-    pvals[i] <- (greater + runif(1)*equal) / i
+    pvals[i] <- (greater + runif(1) * equal) / i
   }
   
-  # 3) Ajustar KDE una sola vez
-  KDE(pvals, n_grid = n_grid)
+  # 3) Ajustar KDE
+  g_p <- KDE(pvals, n_grid = n_grid)
+  
+  # 4) Retornar función que se ajusta al framework esperado
+  function(p_values, new_p, i, ...) {
+    g_p(new_p)
+  }
 }
 
 #HISTOGRAM BF
@@ -111,31 +115,4 @@ histogram_betting_function <- function(p_values, new_p, i, num_bins = 10, ...) {
   bin_index <- findInterval(new_p, breaks, rightmost.closed = TRUE)
   density <- if (sum(counts) == 0) 1 else (counts[bin_index] / sum(counts)) * num_bins
   return(max(density, 1e-10))
-}
-
-#CAUTIOUS BF
-cautious_wrapper <- function(bf_function,             # función de apuesta base: g(p)
-                             p_values,                # vector de p-valores previos
-                             s_values,                # vector de martingala previa
-                             new_p,                   # nuevo p-valor a transformar
-                             W = 100,                 # tamaño de la ventana
-                             epsilon = 100,           # umbral de cambio
-                             ...) {                   # argumentos adicionales para bf_function
-  
-  n <- length(s_values)
-  
-  # Si no hay suficientes valores previos, no apostar aún
-  if (n < W) return(1)
-  
-  # Calcular el ratio de crecimiento reciente
-  s_window <- s_values[(n - W + 1):n]
-  s_ratio <- s_values[n] / min(s_window)
-  
-  # Si no hay suficiente evidencia para apostar, no apuestes (retorna 1)
-  if (s_ratio <= epsilon) {
-    return(1)
-  } else {
-    # Si hay evidencia, usa la función base con los mismos argumentos
-    return(bf_function(p_values = p_values, new_p = new_p, ...))
-  }
 }

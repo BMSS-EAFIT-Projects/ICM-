@@ -8,7 +8,7 @@ m0          <- 200
 n_calib     <- 1000
 epsilon_cal <- 500
 mu1_cal     <- 1
-k0          <- ceiling(m0 / 2)
+k0          <- 7
 
 # 3) Generar training_set y calibration_data tal como en la Sección 2
 train_for_kde <- rnorm(m0, 0, 1)

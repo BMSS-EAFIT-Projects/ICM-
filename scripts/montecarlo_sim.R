@@ -36,20 +36,29 @@ for (theta_s in theta_vals) {
     # ------ NCM y BFs para este salto de media --------------------------------
     ncm_tbl <- tibble(
       ncm_fun  = list(Non_conformity_KNN,
-                      make_ncm_LR(mu1_s)),
-      ncm_lbl  = c("KNN", "LR"),
-      needs_k  = c(TRUE,  FALSE)
+                      make_ncm_LR(mu1_s), Non_conformity_MAD),
+      ncm_lbl  = c("KNN", "LR", "MAD"),
+      needs_k  = c(TRUE,  FALSE, FALSE)
     )
     
     bet_tbl <- tibble(
-      bet_fun = list(Constant_BF, Mixture_BF, kde_bf_fixed),
-      bet_lbl = c("Constant BF", "Mixture BF", "Precomputed KDE BF")
+      bet_fun   = list(Constant_BF, Mixture_BF, kde_bf_fixed, histogram_betting_function),
+      bet_lbl   = c("Constant BF", "Mixture BF", "Precomputed KDE BF", "Histogram BF"),
+      params_bf = list(
+        list(),                    # Constant no necesita nada
+        list(),                    # Mixture tampoco
+        list(),                    # Precomputed KDE tampoco
+        list(num_bins = 20)        # Histogram sí
+      )
     )
     
     icm_res <- expand_grid(ncm_tbl, bet_tbl) |>
       pmap_dfr(function(ncm_fun, ncm_lbl, needs_k,
-                        bet_fun, bet_lbl) {
-        montecarlo_ICM(
+                        bet_fun, bet_lbl, params_bf) {
+        k_val <- if (needs_k) k_par else NULL
+        
+        # ---- Método ICM clásico
+        df_icm <- montecarlo_ICM(
           n_sim        = n_sim,
           h_vals       = h_vals,
           theta_stream = theta_s,
@@ -57,11 +66,27 @@ for (theta_s in theta_vals) {
           m            = m,
           ncm_fun      = ncm_fun,
           bet_fun      = bet_fun,
-          k            = if (needs_k) k_par else NULL
+          k            = k_val,
+          params_bf    = params_bf
         ) |>
-          mutate(Method = paste(ncm_lbl, bet_lbl, sep = " + "))
+          mutate(Method = paste(ncm_lbl, bet_lbl, "+ ICM"))
+        
+        # ---- Método ICM Cautious
+        df_cbf <- montecarlo_ICM_CBF(
+          n_sim        = n_sim,
+          h_vals       = h_vals,
+          theta_stream = theta_s,
+          mu1          = mu1_s,
+          m            = m,
+          ncm_fun      = ncm_fun,
+          bet_fun      = bet_fun,
+          k            = k_val,
+          params_bf    = params_bf
+        ) |>
+          mutate(Method = paste(ncm_lbl, bet_lbl, "+ ICM CBF"))
+        
+        bind_rows(df_icm, df_cbf)
       })
-    
     # ---- Oráculos (sin cambios) ---------------------------------------------
     df_CUSUM <- montecarlo_oraculo(
       n_sim        = n_sim,
