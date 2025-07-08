@@ -163,7 +163,7 @@ montecarlo_ICM_CBF <- function(n_sim           = 200,
                                bet_fun         = Constant_BF,
                                k               = NULL,
                                W               = 100,
-                               epsilon         = 100,
+                               epsilon         = 0.01,
                                params_bf       = list()) {
   if (is.null(k)) k <- 7
   n_stream <- 1000

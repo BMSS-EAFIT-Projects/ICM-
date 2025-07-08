@@ -29,6 +29,3 @@ Non_conformity_MAD <- function(xi, training_set, K=NULL,...){
   zscore <- abs(xi - median_data)
   return(zscore)
 }
-
-
- 

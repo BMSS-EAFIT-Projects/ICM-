@@ -6,7 +6,7 @@ source("R/betting_functions.R")
 n <- 1000
 training_set_size <- 200
 theta <- 500
-
+W <- 50
 z <- c(rnorm((theta + training_set_size), mean = 0, sd = 1),rnorm(n - theta, mean = 1, sd = 1))
 
 training_set <- z[1:training_set_size]
@@ -17,8 +17,8 @@ res_knn_CBF <- ICM_CBF(
   stream_data = stream_data,
   non_conformity_measure = Non_conformity_KNN,
   betting_function = histogram_betting_function,
-  W = 50,
-  epsilon = 0.9,
+  W = W,
+  epsilon = 0.01,
   params_bf = list(num_bins = 10),
   k = 7
 )
@@ -28,8 +28,8 @@ res_lnr_CBF <- ICM_CBF(
   stream_data = stream_data,
   non_conformity_measure = Non_conformity_LNR,
   betting_function = histogram_betting_function,
-  W = 50,
-  epsilon = 0.9,
+  W = W,
+  epsilon = 0.01,
   params_bf = list(num_bins = 10),
   mu_r = 1
 )
@@ -39,8 +39,8 @@ res_knn_const_cbf <- ICM_CBF(
   stream_data = stream_data,
   non_conformity_measure = Non_conformity_KNN,
   betting_function = Constant_BF,
-  W = 50,
-  epsilon = 0.9,
+  W = W,
+  epsilon = 0.01,
   k = 7
 )
 
@@ -49,8 +49,8 @@ res_lnr_const_cbf <- ICM_CBF(
   stream_data = stream_data,
   non_conformity_measure = Non_conformity_LNR,
   betting_function = Constant_BF,
-  W = 50,
-  epsilon = 0.9,
+  W = W,
+  epsilon = 0.01,
   mu_r = 1
 )
 
@@ -59,8 +59,8 @@ res_knn_mix_cbf <- ICM_CBF(
   stream_data = stream_data,
   non_conformity_measure = Non_conformity_KNN,
   betting_function = Mixture_BF,
-  W = 50,
-  epsilon = 0.9,
+  W = W,
+  epsilon = 0.01,
   k = 7
 )
 
@@ -69,29 +69,24 @@ res_lnr_mix_cbf <- ICM_CBF(
   stream_data = stream_data,
   non_conformity_measure = Non_conformity_LNR,
   betting_function = Mixture_BF,
-  W = 50,
-  epsilon = 0.9,
+  W = W,
+  epsilon = 0.01,
   mu_r = 1
 )
 
 
-plot(log(res_knn_const_cbf$S_vals), type = "l", col = "blue", lwd = 2,
-     ylim = range(log(c(
-       res_knn_const_cbf$S_vals, res_lnr_const_cbf$S_vals,
-       res_knn_mix_cbf$S_vals, res_lnr_mix_cbf$S_vals,
-       res_knn_CBF$S_vals, res_lnr_CBF$S_vals
-     ))),
-     xlab = "Tiempo", ylab = expression(log(S[n])),
+plot((res_knn_CBF$S_vals), type = "l", col = "blue", lwd = 2,
+     xlab = "Tiempo", ylab = expression(S[n]),
      main = "ICM_CBF - Comparación de funciones de apuesta")
 
-lines(log(res_lnr_const_cbf$S_vals), col = "darkblue", lwd = 2, lty = 2)
-lines(log(res_knn_mix_cbf$S_vals), col = "darkgreen", lwd = 2)
-lines(log(res_lnr_mix_cbf$S_vals), col = "forestgreen", lwd = 2, lty = 2)
-lines(log(res_knn_CBF$S_vals), col = "orange", lwd = 2)
-lines(log(res_lnr_CBF$S_vals), col = "red", lwd = 2, lty = 2)
+lines((res_lnr_const_cbf$S_vals), col = "darkblue", lwd = 2, lty = 2)
+lines((res_knn_mix_cbf$S_vals), col = "darkgreen", lwd = 2)
+lines((res_lnr_mix_cbf$S_vals), col = "forestgreen", lwd = 2, lty = 2)
+lines((res_knn_CBF$S_vals), col = "orange", lwd = 2)
+lines((res_lnr_CBF$S_vals), col = "red", lwd = 2, lty = 2)
 abline(v = 500, col = "gray", lty = 3)
 
-legend("bottomleft",
-       legend = c("Const-KNN", "Const-LNR", "Mix-KNN", "Mix-LNR", "Hist-KNN", "Hist-LNR"),
-       col = c("blue", "darkblue", "darkgreen", "forestgreen", "orange", "red"),
-       lwd = 2, lty = c(1,2,1,2,1,2))
+#legend("bottomleft",
+#       legend = c("Const-KNN", "Const-LNR", "Mix-KNN", "Mix-LNR", "Hist-KNN", "Hist-LNR"),
+#       col = c("blue", "darkblue", "darkgreen", "forestgreen", "orange", "red"),
+#       lwd = 2, lty = c(1,2,1,2,1,2))
