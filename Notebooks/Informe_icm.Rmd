@@ -94,7 +94,7 @@ df_all_methods <- readRDS("../data/resultados_sim.rds")
 
 #CONSTANT BF 2D
 ```{r}
-df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM","LR Constant BF + ICM","MAD Constant BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "KNN Constant BF + ICM CBF","LR Constant BF + ICM","MAD Constant BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -205,7 +205,8 @@ layout(
 
 # KDE PRECOMPUTADA 2D
 ```{r}
-df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "KNN Precomputed KDE BF + ICM CBF
+", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -260,7 +261,7 @@ layout(
 ```
 #Histograma 2D
 ```{r}
-df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM", "LR Histogram BF + ICM", "MAD Histogram BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
+df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM", "KNN Histogram BF + ICM CBF","LR Histogram BF + ICM", "MAD Histogram BF + ICM","CUSUM Oracle", "S-R Oracle", "Posterior Oracle"))
 ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
