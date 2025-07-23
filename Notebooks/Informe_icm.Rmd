@@ -346,4 +346,75 @@ ggplot(bench_data, aes(x = expr, y = time_ms, color = expr)) +
     legend.position = "none"
   )
 ```
+# Grafica comparativa desempeño MAD para conjuntos de entrenamiento pequeños
+```{r}
+df_MAD_comp <- readRDS("../data/figura3_icm_MAD.rds")
+df_MAD_mixt <- readRDS("../data/figura3_icm_MAD_mixt.rds")
+```
+
+
+```{r}
+df_long_MAD <- pivot_longer(df_MAD_comp, -time, names_to = "curva", values_to = "Cn")
+
+color_map <- c(
+  "m_1"      = "#1f77b4",
+  "m_2"      = "#2ca02c",
+  "m_3"      = "#d62728",
+  "m_4"      = "#9467bd",
+  "m_5"      = "#ff7f0e",
+  "con_cp"   = "#bcbd22"
+)
+
+ggplot(df_long_MAD, aes(x = time, y = Cn, color = curva)) +
+  geom_line(size = 1) +
+  scale_color_manual(values = color_map,
+                     labels = c(
+                       "m_1" = "Train set size m = 1",
+                       "m_2" = "Train set size m = 2",
+                       "m_3" = "Train set size m = 3",
+                       "m_4" = "Train set size m = 4",
+                       "m_5" = "Train set size m = 5",
+                       "con_cp" = "With change-point, m = 1"
+                     )) +
+  labs(
+    title = "Figura Comparacion desempeño MAD - ICM CONSTBF con y sin cambio",
+    x = "Time, n",
+    y = expression(C[n]),
+    color = "Curva"
+  ) +
+  geom_vline(xintercept = 500, linetype = "dashed", color = "#FFD700", size = 1) +
+  theme_minimal(base_size = 13)
+```
+```{r}
+df_long_MAD_mixt <- pivot_longer(df_MAD_mixt, -time, names_to = "curva", values_to = "Cn")
+
+color_map <- c(
+  "m_1"      = "#1f77b4",
+  "m_2"      = "#2ca02c",
+  "m_3"      = "#d62728",
+  "m_4"      = "#9467bd",
+  "m_5"      = "#ff7f0e",
+  "con_cp"   = "#bcbd22"
+)
+
+ggplot(df_long_MAD_mixt, aes(x = time, y = Cn, color = curva)) +
+  geom_line(size = 1) +
+  scale_color_manual(values = color_map,
+                     labels = c(
+                       "m_1" = "Train set size m = 1",
+                       "m_2" = "Train set size m = 2",
+                       "m_3" = "Train set size m = 3",
+                       "m_4" = "Train set size m = 4",
+                       "m_5" = "Train set size m = 5",
+                       "con_cp" = "With change-point, m = 1"
+                     )) +
+  labs(
+    title = "Figura Comparacion desempeño MAD - ICM - MIXTBF con y sin cambio",
+    x = "Time, n",
+    y = expression(C[n]),
+    color = "Curva"
+  ) +
+  geom_vline(xintercept = 500, linetype = "dashed", color = "#FFD700", size = 1) +
+  theme_minimal(base_size = 13)
+```
 

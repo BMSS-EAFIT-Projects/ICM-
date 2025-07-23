@@ -25,7 +25,8 @@ Non_conformity_LNR <- function(xi, training_set, mu_r = 1, k=NULL,...) {
 
 #MAD
 Non_conformity_MAD <- function(xi, training_set, K=NULL,...){
-  median_data <- median(training_set)
-  zscore <- abs(xi - median_data)
-  return(zscore)
+  med <- median(training_set)
+  mad_val <- median(abs(training_set - med))
+  score <- abs(xi - med) / (mad_val + 1e-8)
+  return(score)
 }
