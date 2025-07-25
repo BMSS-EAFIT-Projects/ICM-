@@ -20,7 +20,7 @@ Non_conformity_LNR <- function(xi, training_set, mu_r = 1, k=NULL,...) {
   numerator   <- dnorm(xi, mean = mu_r, sd = sigma_f1)
   denominator <- dnorm(xi, mean = mu0_hat, sd = sqrt(1))
   
-  return(numerator / denominator)
+  return(numerator / denominator) #El cociente debe hacerse entre verosimilitudes. Ver la expresión 5 del paper principal
 }
 
 #MAD
