@@ -291,18 +291,16 @@ ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
 
 
 
-#Benchmarks of the ICM methods
+#Benchmarks para los metodos ICM
 ```{r}
 bench_data <- readRDS("../data/benchmarks_raw.rds")
 ```
 
-# time manipulation
 ```{r}
 bench_data <- bench_data %>%
   mutate(time_ms = time / 1e6)
 ```
 
-# summary
 ```{r}
 bench_summary <- bench_data %>%
   group_by(expr, scenario) %>%
@@ -314,7 +312,7 @@ bench_summary <- bench_data %>%
   )
 ```
 
-#mean times
+#Tiempos medios del benchmark
 ```{r}
 ggplot(bench_summary, aes(x = expr, y = mean_ms, fill = expr)) +
   geom_col(width = 0.6) +
@@ -417,4 +415,114 @@ ggplot(df_long_MAD_mixt, aes(x = time, y = Cn, color = curva)) +
   geom_vline(xintercept = 500, linetype = "dashed", color = "#FFD700", size = 1) +
   theme_minimal(base_size = 13)
 ```
+
+# Desigualdad de ville analisis de desemepeño
+
+```{r}
+df_all_methods_ville <- readRDS("../data/resultados_sim_ville.rds")
+
+```
+## Constant BF
+##Resultado:
+no se obtuvo falsas alarmas en 500 simulaciones para ninguno de los metodos usando los humbrales basados en la desigualdad de ville
+```{r}
+df_CONST_VILLE <- df_all_methods_ville %>% filter(Method %in% c("KNN Constant BF + ICM","LR Constant BF + ICM", "MAD Constant BF + ICM", "S-R Oracle", "Posterior Oracle", "CUSUM Oracle"))
+ggplot(df_CONST_VILLE,
+       aes(x = threshold,
+           y = mean_delay,
+           colour   = Method,
+           linetype = Method)) +
+  geom_line(size = 0.9) +
+  facet_grid(rows = vars(theta_stream),
+             cols = vars(mu1),
+             labeller = label_both) +
+  scale_y_continuous("Retardo medio (observaciones)",
+                     breaks = scales::pretty_breaks()) +
+  labs(
+    x = "Umbral h",
+    title = "ICM e ICM-CBF con Constant BF",
+    subtitle = "NCM = KNN, LR y MAD  •  sin falsas alarmas",
+    colour = NULL, linetype = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom",
+        legend.box = "vertical")
+```
+
+
+## Mixture bf
+```{r}
+df_MIXT_VILLE <- df_all_methods_ville %>% filter(Method %in% c("KNN Mixture BF + ICM","LR Mixture BF + ICM", "MAD Mixture BF + ICM", "S-R Oracle", "Posterior Oracle", "CUSUM Oracle"))
+ggplot(df_MIXT_VILLE,
+       aes(x = threshold,
+           y = mean_delay,
+           colour   = Method,
+           linetype = Method)) +
+  geom_line(size = 0.9) +
+  facet_grid(rows = vars(theta_stream),
+             cols = vars(mu1),
+             labeller = label_both) +
+  scale_y_continuous("Retardo medio (observaciones)",
+                     breaks = scales::pretty_breaks()) +
+  labs(
+    x = "Umbral h",
+    title = "ICM e ICM-CBF con Mixture BF",
+    subtitle = "NCM = KNN, LR y MAD  •  sin falsas alarmas",
+    colour = NULL, linetype = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom",
+        legend.box = "vertical")
+```
+
+##HISTOGRAM BF
+```{r}
+df_HIST_VILLE <- df_all_methods_ville %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM","S-R Oracle", "Posterior Oracle", "CUSUM Oracle"))
+ggplot(df_HIST_VILLE,
+       aes(x = threshold,
+           y = mean_delay,
+           colour   = Method,
+           linetype = Method)) +
+  geom_line(size = 0.9) +
+  facet_grid(rows = vars(theta_stream),
+             cols = vars(mu1),
+             labeller = label_both) +
+  scale_y_continuous("Retardo medio (observaciones)",
+                     breaks = scales::pretty_breaks()) +
+  labs(
+    x = "Umbral h",
+    title = "ICM e ICM-CBF con Histogram BF",
+    subtitle = "NCM = KNN, LR y MAD  •  sin falsas alarmas",
+    colour = NULL, linetype = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom",
+        legend.box = "vertical")
+```
+## KDE precompt
+```{r}
+df_KDE_VILLE <- df_all_methods_ville %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM","LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM","S-R Oracle", "Posterior Oracle", "CUSUM Oracle"))
+ggplot(df_KDE_VILLE,
+       aes(x = threshold,
+           y = mean_delay,
+           colour   = Method,
+           linetype = Method)) +
+  geom_line(size = 0.9) +
+  facet_grid(rows = vars(theta_stream),
+             cols = vars(mu1),
+             labeller = label_both) +
+  scale_y_continuous("Retardo medio (observaciones)",
+                     breaks = scales::pretty_breaks()) +
+  labs(
+    x = "Umbral h",
+    title = "ICM e ICM-CBF con KDE precomp BF",
+    subtitle = "NCM = KNN, LR y MAD  •  sin falsas alarmas",
+    colour = NULL, linetype = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom",
+        legend.box = "vertical")
+```
+
+
 

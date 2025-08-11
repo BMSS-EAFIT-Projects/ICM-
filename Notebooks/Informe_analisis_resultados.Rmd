@@ -1,0 +1,40 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+# Informe escrito de resultados
+
+##Figuras del articulo guia
+Se pudo replicar con exito o parcial exito (figura 5) las graficas del articulo con la implementacion realizada en este proyecto, se pueden revisar todas las graficas mencionadas en el archivo **informe_icm.rmd** o revisar directamente los scripts que producen la informacion como lo son **figura_1**, **figura_2** y **figura_5_montecarlo_sim** en estos arcihvos de la carpeta **scripts** encontrara el codigo que se implemento para su generacion y en alguno de ellos la figura almacenada como un rds, en otros solo el data frame que contiene la informacion
+
+##ICM con CBF vs ICM con transformacion logaritmica
+Los resultados obtenidos se pueden revisar en la figuras 5 modificando el filtro de la grafica, la conclusion es que los metodos presentan un comportamiento estable pero parece ser que sus retardos medios estan fijos sobre las probabilidades de falsa alarma. si desea ver la comparacion copie y pegue lo siguiente en el filtro de la grafica segun sea la funcion de apuesta de su interes:
+```{r}
+filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "KNN Precomputed KDE BF + ICM CBF","LR Precomputed KDE BF + ICM CBF","MAD Precomputed KDE BF + ICM CBF"))
+```
+
+tambien se puede modificar el filtro de la siguiente manera para ver los resultado comparativos con los oraculos, es importante tener en cuenta que la grafica de los oraculos no se pudo recrear al 100% porque los oraculos tiene una escala diferente que afecta su comportamiento con respecto al umbral del icm
+```{r}
+filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "CUSUM Oracle", "Posterior Oracle", "	
+S-R Oracle"))
+```
+
+## Comparacion MAD para variacion en el tamaño del conjunto de entrenamiento
+Se relaizo tambien el analisis sobre el desempeño de la medida de no conformidad MAD como una alternativa al KNN que no introduce una variable adicional al metodo ICM, esta medida de no conformidad mostro un desemepño significativamnete similar al del KNN y en las graficas de la seccion **Grafica comparativa desempeño MAD para conjuntos de entrenamiento pequeños** del informe **infomre_icm.rmd** se evidencio que al igual que las martingalas con KNN el metodo funciona con conjuntos de entrenamiento bajos
+##ICM con umbrales definidos con la desigualdad de ville vs ICM con umbrales entre 1 y 6
+Se realizo el mismo analisis de sensibilidad de la figura 5 pero usando umbrales definidos por la desigualda de ville
+$$
+\mathbb{P}\left(M_k \ge \lambda \right) 
+\le \frac{1}{\lambda}
+$$
+El resultado es que no se pudo establecer una comparacion justa pues los umbrales de la desigualdad de ville son tan altos que para todas las simulaciones no se obtuvo nunca una probabilidad de falsa alarma por lo tanto se realizo una comprativa con respecto a los retardos medios unicamente, dicha comparativa se puede encontrar en la seccion **Desigualdad de ville analisis de desemepeño** que puede encontrar en el archivo **informe_icm.rmd**.
+
+De estas graficas se obtien la curva creciente del retardo medio a medida que el valor del umbral se hace mas grande, salvo un comportamiento extraño evidenciado en los metodos cuando el cambio en la distribucion es pequeñopor ejemplo de 0 a 1
+
+
+
+
+
