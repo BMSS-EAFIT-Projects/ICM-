@@ -13,11 +13,7 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 library(plotly)
-# Si quisieras recrearlo todo “dinámicamente”:
-source("../R/non_conformity_measures.R")
-source("../R/betting_functions.R")
-source("../R/icm_method.R")
-source("../R/montecarlo_function.R")
+
 kde_bf_fixed <- readRDS("../data/kde_bf_fixed.rds")
 ```
 
@@ -88,13 +84,17 @@ ggplot(df_long, aes(x = time, y = Cn, color = curva)) +
 
 
 # 4. Graficas comaprativas seccion 5 paper guia
+
+En esta seccion se replican las graficas del paper guia expuestas en la seccion , corresponden a un montecarlo que simula dos escenarios de punto de cambio con 3 diferentes saltos en la media.
+Puntos de cambio: 100 y 200.
+saltos en la media: 1, 1.5 y 2
 ```{r}
-df_all_methods <- readRDS("../data/resultados_sim.rds")
+df_all_methods <- readRDS("../data/prueba_fast.rds")
 ```
 
 #CONSTANT BF 2D
 ```{r}
-df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "KNN Constant BF + ICM CBF","LR Constant BF + ICM", "LR Constant BF + ICM CBF","MAD Constant BF + ICM", "MAD Constant BF + ICM CBF"))
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -150,7 +150,7 @@ layout(
 
 # MIXTURE BF 2D
 ```{r}
-df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM","KNN Mixture BF + ICM CBF", "LR Mixture BF + ICM CBF", "MAD Mixture BF + ICM CBF"))
+df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM"))
 ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -205,7 +205,7 @@ layout(
 
 # KDE PRECOMPUTADA 2D
 ```{r}
-df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "KNN Precomputed KDE BF + ICM CBF","LR Precomputed KDE BF + ICM CBF","MAD Precomputed KDE BF + ICM CBF"))
+df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM"))
 ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -260,7 +260,7 @@ layout(
 ```
 #Histograma 2D
 ```{r}
-df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM","KNN Histogram BF + ICM CBF","LR Histogram BF + ICM CBF","MAD Histogram BF + ICM CBF"))
+df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM"))
 ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -312,7 +312,9 @@ bench_summary <- bench_data %>%
   )
 ```
 
-#Tiempos medios del benchmark
+# Tiempos medios del benchmark
+Se presentan resultados de coste temporal de ejecucion unitaria de los metodos
+
 ```{r}
 ggplot(bench_summary, aes(x = expr, y = mean_ms, fill = expr)) +
   geom_col(width = 0.6) +
@@ -345,6 +347,8 @@ ggplot(bench_data, aes(x = expr, y = time_ms, color = expr)) +
   )
 ```
 # Grafica comparativa desempeño MAD para conjuntos de entrenamiento pequeños
+
+En las siguientes graficas el objetivo es comparar la esatbilidad del MAD y KNN en el sentido de si se desempe;an bien para conjuntos de entrenamiento de poco tamaño
 ```{r}
 df_MAD_comp <- readRDS("../data/figura3_icm_MAD.rds")
 df_MAD_mixt <- readRDS("../data/figura3_icm_MAD_mixt.rds")
@@ -418,12 +422,14 @@ ggplot(df_long_MAD_mixt, aes(x = time, y = Cn, color = curva)) +
 
 # Desigualdad de ville analisis de desemepeño
 
+Resultados de realizar el montecarlo con umbrales definidos por la desigualdad de ville
+
 ```{r}
 df_all_methods_ville <- readRDS("../data/resultados_sim_ville.rds")
 
 ```
 ## Constant BF
-##Resultado:
+## Resultado:
 no se obtuvo falsas alarmas en 500 simulaciones para ninguno de los metodos usando los humbrales basados en la desigualdad de ville
 ```{r}
 df_CONST_VILLE <- df_all_methods_ville %>% filter(Method %in% c("KNN Constant BF + ICM","LR Constant BF + ICM", "MAD Constant BF + ICM", "S-R Oracle", "Posterior Oracle", "CUSUM Oracle"))

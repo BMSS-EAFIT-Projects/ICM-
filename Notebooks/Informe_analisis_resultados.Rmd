@@ -5,12 +5,21 @@ output: html_notebook
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr); library(tidyr); library(kableExtra); library(ggplot2); library(forcats); library(ggridges)
+
+```
+
 # Informe escrito de resultados
 
-##Figuras del articulo guia
+## Figuras del articulo guia
 Se pudo replicar con exito o parcial exito (figura 5) las graficas del articulo con la implementacion realizada en este proyecto, se pueden revisar todas las graficas mencionadas en el archivo **informe_icm.rmd** o revisar directamente los scripts que producen la informacion como lo son **figura_1**, **figura_2** y **figura_5_montecarlo_sim** en estos arcihvos de la carpeta **scripts** encontrara el codigo que se implemento para su generacion y en alguno de ellos la figura almacenada como un rds, en otros solo el data frame que contiene la informacion
 
-##ICM con CBF vs ICM con transformacion logaritmica
+## ICM con CBF vs ICM con transformacion logaritmica
 Los resultados obtenidos se pueden revisar en la figuras 5 modificando el filtro de la grafica, la conclusion es que los metodos presentan un comportamiento estable pero parece ser que sus retardos medios estan fijos sobre las probabilidades de falsa alarma. si desea ver la comparacion copie y pegue lo siguiente en el filtro de la grafica segun sea la funcion de apuesta de su interes:
 ```{r}
 filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "KNN Precomputed KDE BF + ICM CBF","LR Precomputed KDE BF + ICM CBF","MAD Precomputed KDE BF + ICM CBF"))
@@ -21,20 +30,152 @@ tambien se puede modificar el filtro de la siguiente manera para ver los resulta
 filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "CUSUM Oracle", "Posterior Oracle", "	
 S-R Oracle"))
 ```
+A continuacion se presenta una tabla por cada funcion de apuesta donde se compara el retardo medio por cada Funcion de no conformidad para las probabilidades de falsa alarma de 5% y 10%
+
+```{r}
+bf <- readRDS("../data/tabla_delays.rds")
+
+print_bf <- function(bf_name,
+                     ncm_order = c("LR","KNN","MAD"),
+                     scenario_label_fun = function(s) gsub("_", ", ", s)) {
+
+  stopifnot(all(c("BF","scenario_key","NCM","delay_5","delay_10") %in% names(bf)))
+
+  x <- dplyr::filter(bf, BF == bf_name)
+  if (nrow(x) == 0) { cat("Sin filas para BF =", bf_name, "\n"); return(invisible(NULL)) }
+
+  # orden: usa tu preferencia, pero solo las NCM presentes
+  ncm_order <- ncm_order[ncm_order %in% unique(x$NCM)]
+  if (length(ncm_order) == 0) ncm_order <- sort(unique(x$NCM))
+
+  tab5 <- x %>%
+    dplyr::select(scenario_key, NCM, delay_5) %>%
+    dplyr::mutate(NCM = factor(NCM, levels = ncm_order)) %>%
+    dplyr::arrange(scenario_key, NCM) %>%
+    tidyr::pivot_wider(names_from = NCM, values_from = delay_5)
+
+  tab10 <- x %>%
+    dplyr::select(scenario_key, NCM, delay_10) %>%
+    dplyr::mutate(NCM = factor(NCM, levels = ncm_order)) %>%
+    dplyr::arrange(scenario_key, NCM) %>%
+    tidyr::pivot_wider(names_from = NCM, values_from = delay_10)
+
+  # asegurar mismas columnas
+  for (cc in ncm_order) {
+    if (!cc %in% names(tab5))  tab5[[cc]]  <- NA_real_
+    if (!cc %in% names(tab10)) tab10[[cc]] <- NA_real_
+  }
+
+  final_tbl <- dplyr::left_join(tab5, tab10, by = "scenario_key", suffix = c("_5","_10")) %>%
+    dplyr::mutate(`Param., Probab. of FA` = scenario_label_fun(scenario_key)) %>%
+    dplyr::select(`Param., Probab. of FA`,
+                  tidyselect::all_of(paste0(ncm_order,"_5")),
+                  tidyselect::all_of(paste0(ncm_order,"_10")))
+
+  k <- length(ncm_order)
+  lbl5  <- if (knitr::is_latex_output()) "5\\%"  else "5%"
+  lbl10 <- if (knitr::is_latex_output()) "10\\%" else "10%"
+
+  kableExtra::kbl(
+    final_tbl, booktabs = TRUE,
+    align = c("l", rep("r", 2*k)),
+    col.names = c("Param.,\\ Probab. of FA", ncm_order, ncm_order),
+    caption = paste("Betting function:", bf_name)
+  ) %>%
+    kableExtra::add_header_above(c(" " = 1, setNames(k, lbl5), setNames(k, lbl10))) %>%
+    kableExtra::column_spec(1 + k + 1, border_left = TRUE) %>%
+    kableExtra::kable_styling(full_width = FALSE, bootstrap_options = c("striped","condensed"))
+}
+```
+
+## Nota
+A continuacion se presentan las tablas comaprativas asociadas a cada funcion de apuesta y cada medida de no conformidad para 5% y 10% de falsa alarma:
+
+## Constant BF
+```{r}
+print_bf("Constant BF")
+```
+## Mixtubre BF
+```{r}
+print_bf("Mixture BF")
+```
+
+## Histogram BF
+```{r}
+print_bf("Histogram BF")
+```
+
+##Precomputed KDE
+```{r}
+print_bf("Precomputed KDE BF")
+```
+
+
 
 ## Comparacion MAD para variacion en el tamaño del conjunto de entrenamiento
 Se relaizo tambien el analisis sobre el desempeño de la medida de no conformidad MAD como una alternativa al KNN que no introduce una variable adicional al metodo ICM, esta medida de no conformidad mostro un desemepño significativamnete similar al del KNN y en las graficas de la seccion **Grafica comparativa desempeño MAD para conjuntos de entrenamiento pequeños** del informe **infomre_icm.rmd** se evidencio que al igual que las martingalas con KNN el metodo funciona con conjuntos de entrenamiento bajos
-##ICM con umbrales definidos con la desigualdad de ville vs ICM con umbrales entre 1 y 6
+
+## ICM con umbrales definidos con la desigualdad de ville vs ICM con umbrales entre 1 y 6
 Se realizo el mismo analisis de sensibilidad de la figura 5 pero usando umbrales definidos por la desigualda de ville
 $$
 \mathbb{P}\left(M_k \ge \lambda \right) 
 \le \frac{1}{\lambda}
 $$
-El resultado es que no se pudo establecer una comparacion justa pues los umbrales de la desigualdad de ville son tan altos que para todas las simulaciones no se obtuvo nunca una probabilidad de falsa alarma por lo tanto se realizo una comprativa con respecto a los retardos medios unicamente, dicha comparativa se puede encontrar en la seccion **Desigualdad de ville analisis de desemepeño** que puede encontrar en el archivo **informe_icm.rmd**.
+En conclusion no se pudo establecer una comparacion justa pues los umbrales de la desigualdad de ville son tan altos que para todas las simulaciones que no se obtuvo nunca una probabilidad de falsa alarma por lo tanto se realizo una comprativa con respecto a los retardos medios unicamente, dicha comparativa se puede encontrar en la seccion **Desigualdad de ville analisis de desemepeño** que puede encontrar en el archivo **informe_icm.rmd**.
 
 De estas graficas se obtien la curva creciente del retardo medio a medida que el valor del umbral se hace mas grande, salvo un comportamiento extraño evidenciado en los metodos cuando el cambio en la distribucion es pequeñopor ejemplo de 0 a 1
 
+## Distribucion de puntos de cambio
+
+Se tomo la decision de estudiar la distribucion de los puntos de cambio para
+```{r}
+taus <- readRDS("../data/prueba_fast_taus.rds")
+```
+
+```{r}
+df1 <- taus %>%
+  filter(is.finite(tau), !is.na(threshold), !is.na(Method), !is.na(scenario_key)) %>%
+  mutate(threshold = factor(threshold, levels = sort(unique(threshold))))
+
+# Todas las combinaciones ordenadas
+combos <- df1 %>%
+  distinct(Method, scenario_key, threshold) %>%
+  arrange(Method, scenario_key, as.numeric(as.character(threshold)))
+
+plot_mosaico_metodo <- function(metodo, escenario, bins = 30, ncol = 4){
+  d <- df1 %>% filter(Method == metodo, scenario_key == escenario)
+  ggplot(d, aes(x = tau)) +
+    geom_histogram(bins = bins, color = "white") +
+    facet_wrap(~ threshold, ncol = ncol, scales = "free_y",
+               labeller = labeller(threshold = label_both)) +
+    labs(title = paste("tau por threshold —", metodo, "|", escenario),
+         x = "tau", y = "Frecuencia") +
+    theme_minimal()
+}
+
+metodos <- df1 %>%
+  distinct(Method) %>%
+  mutate(k = row_number()) %>%      # índice 1,2,3,...
+  select(k, Method)
 
 
+```
 
+
+```{r}
+which(metodos$Method == "KNN Histogram BF + ICM")
+```
+# Histograma de puntos de cambio
+En las siguientes graficas se aprecia como cambia la distribucion de los puntos de cambio para cada valor de umbral, se puede ver como a medida que el umbral aumenta la tendencia de los puntos de cambio se acumula en torno al valor real de cambio
+
+```{r}
+plot_mosaico_metodo(unique(df1$Method)[1], unique(df1$scenario_key)[3])
+```
+```{r}
+plot_mosaico_metodo(unique(df1$Method)[3], unique(df1$scenario_key)[3])
+```
+
+```{r}
+plot_mosaico_metodo(unique(df1$Method)[7], unique(df1$scenario_key)[3])
+```
 
