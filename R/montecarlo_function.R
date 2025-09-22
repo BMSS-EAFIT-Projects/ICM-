@@ -1,4 +1,5 @@
 library(future.apply)
+library(data.table)
 #montecarlo method for treshold simulations
 
 source("R/non_conformity_measures.R")
@@ -226,3 +227,230 @@ montecarlo_ICM_CBF <- function(n_sim        = 200,
   return(list(summary = summary_df, taus = taus_long))
 }
 
+
+
+montecarlo_ICM_MULTI <- function(
+    n_sim        = 200,
+    h_vals       = seq(1, 6, 0.5),
+    m            = 200,
+    n_stream     = 1000,
+    theta_vec    = c(300, 700),
+    mu_levels    = c(0, 1.5, 0),
+    ncm_fun      = Non_conformity_KNN,
+    bet_fun      = Constant_BF,
+    params_bf    = list(),
+    k            = NULL,
+    window_mode  = c("abs","frac"),
+    window_abs   = Inf,
+    window_frac  = 1.0
+){
+  if (is.null(k)) k <- 7
+  window_mode <- match.arg(window_mode)
+  J <- length(theta_vec)
+  
+  one_sim <- function(sim_id){
+    # 1) stream + entrenamiento (una sola vez)
+    training_set <- rnorm(m, 0, 1)
+    gen <- make_stream_mean_shifts(n_stream, theta_vec, mu_levels, sd = 1)
+    
+    # 2) alphas UNA vez (para no recalcular NCM por cada h)
+    alphas_full <- alphas_from_ncm(gen$stream, training_set,
+                                   ncm_fun = ncm_fun, k = k)
+    
+    per_change_list <- vector("list", length(h_vals))
+    alarms_list     <- vector("list", length(h_vals))
+    stats_mat <- matrix(0, nrow = length(h_vals), ncol = 4) # TP, MISS, FA, OSEG
+    
+    for (j in seq_along(h_vals)) {
+      h <- h_vals[j]
+      
+      # *** Igual que antes: ICM_multi_fast con umbral ESCALAR (no NULL) ***
+      out <- ICM_multi_fast(
+        training_set           = training_set,
+        stream_data            = gen$stream,
+        non_conformity_measure = ncm_fun,
+        betting_function       = bet_fun,
+        th                     = h,                # <-- ya NO es NULL
+        params_bf              = params_bf,
+        k                      = k,
+        alphas_full            = alphas_full       # <-- reutilizamos
+      )
+      
+      eva <- match_alarms_to_changes_multi(
+        alarms       = as.integer(out$change_points),
+        true_changes = gen$true_changes,
+        n_stream     = n_stream,
+        window_mode  = window_mode,
+        window_abs   = window_abs,
+        window_frac  = window_frac
+      )
+      stats_mat[j,] <- c(eva$tp_count, eva$miss_count, eva$fa_count, eva$extras_after_tp)
+      per_change_list[[j]] <- tibble(sim_id = sim_id, threshold = h) |> dplyr::bind_cols(eva$per_change)
+      alarms_list[[j]]     <- tibble(sim_id = sim_id, threshold = h) |> dplyr::bind_cols(eva$alarms_df)
+    }
+    
+    list(
+      stats_mat  = stats_mat,
+      per_change = dplyr::bind_rows(per_change_list),
+      alarms     = dplyr::bind_rows(alarms_list)
+    )
+  }
+  
+  sims <- future.apply::future_lapply(seq_len(n_sim), one_sim, future.seed = TRUE)
+  
+  # apilar matrices TP/MISS/FA/OSEG
+  stats_arr <- simplify2array(lapply(sims, `[[`, "stats_mat"))  # [length(h_vals) x 4 x n_sim]
+  stats_sum <- apply(stats_arr, c(1,2), sum)
+  colnames(stats_sum) <- c("TP","MISS","FA","OSEG")
+  TP   <- stats_sum[,"TP"]
+  MISS <- stats_sum[,"MISS"]
+  FA   <- stats_sum[,"FA"]
+  OSEG <- stats_sum[,"OSEG"]
+  
+  # Delays: sacarlos de per_change (promedios por h)
+  per_change_all <- rbindlist(lapply(sims, `[[`, "per_change"))
+  # resumen por h y cambio
+  per_change_summ <- per_change_all[, .(
+    seg_len          = mean(seg_len),
+    recall_j         = mean(tp),
+    miss_rate_j      = 1 - mean(tp),
+    mean_delay_j     = mean(delay, na.rm = TRUE),
+    median_delay_j   = median(delay, na.rm = TRUE),
+    iqr_delay_j      = IQR(delay, na.rm = TRUE),
+    norm_delay_j     = mean(delay / seg_len, na.rm = TRUE),
+    extras_after_tp_j= mean(extras_after_tp),
+    fa_in_segment_j  = mean(fa_in_segment)
+  ),
+  by = .(threshold, change_id)
+  ]
+  
+  # mean_delay global por h (promediando delays válidos por simulación/cambio)
+  delay_by_h <- per_change_all[, .(mean_delay = mean(delay, na.rm = TRUE)), by = .(threshold)]
+  
+  # summary por h
+  dt_h <- data.table(threshold = h_vals)
+  dt_h[, recall := TP / (J * n_sim)]
+  dt_h[, miss_rate := 1 - recall]
+  dt_h[, precision := ifelse(TP + FA > 0, TP / (TP + FA), NA_real_)]
+  dt_h[, fa_per_1000 := FA / (n_stream * n_sim) * 1000]
+  dt_h[, alarms_per_1000 := (TP + FA) / (n_stream * n_sim) * 1000]
+  dt_h[, overseg_ratio := ifelse(TP > 0, OSEG / TP, NA_real_)]
+  
+  dt_h <- merge(dt_h, as.data.table(delay_by_h), by = "threshold", all.x = TRUE)
+  dt_h[, log_delay := log10(1 + mean_delay)]
+  
+  list(
+    summary    = as_tibble(dt_h),
+    per_change = as_tibble(per_change_summ),
+    alarms     = as_tibble(rbindlist(lapply(sims, `[[`, "alarms")))
+  )
+}
+
+
+# 4) Wrapper: Monte Carlo para ICM_multi_adaptive (con reentrenos) -------------
+montecarlo_ICM_MULTI_ADAPTIVE <- function(
+    n_sim        = 200,
+    h_vals       = seq(1, 6, 0.5),
+    m            = 200,
+    n_stream     = 1000,
+    theta_vec    = c(300, 700),
+    mu_levels    = c(0, 1.5, 0),
+    ncm_fun      = Non_conformity_KNN,
+    bet_fun      = Constant_BF,
+    params_bf    = list(),
+    k            = NULL,
+    m_retrain    = NULL,
+    guard_band   = 0L,
+    window_mode  = c("abs","frac"),
+    window_abs   = Inf,
+    window_frac  = 1.0
+){
+  if (is.null(k)) k <- 7
+  if (is.null(m_retrain)) m_retrain <- m
+  window_mode <- match.arg(window_mode)
+  J <- length(theta_vec)
+  
+  one_sim <- function(sim_id){
+    gen <- make_stream_mean_shifts(n_stream, theta_vec, mu_levels, sd = 1)
+    training_set0 <- rnorm(m, 0, 1)
+    
+    per_change_list <- vector("list", length(h_vals))
+    alarms_list     <- vector("list", length(h_vals))
+    stats_mat <- matrix(0, nrow = length(h_vals), ncol = 4)
+    
+    for (j in seq_along(h_vals)) {
+      h <- h_vals[j]
+      out <- ICM_multi_adaptive_fast(
+        stream_data            = gen$stream,
+        non_conformity_measure = ncm_fun,
+        betting_function       = bet_fun,
+        th                     = h,
+        training_set           = training_set0,
+        training_size          = NULL,
+        m_retrain              = m_retrain,
+        guard_band             = guard_band,
+        shuffle_training       = TRUE,
+        params_bf              = params_bf,
+        k                      = k
+      )
+      eva <- match_alarms_to_changes_multi(
+        alarms       = as.integer(out$change_points_stream),
+        true_changes = gen$true_changes,
+        n_stream     = n_stream,
+        window_mode  = window_mode,
+        window_abs   = window_abs,
+        window_frac  = window_frac
+      )
+      stats_mat[j,] <- c(eva$tp_count, eva$miss_count, eva$fa_count, eva$extras_after_tp)
+      per_change_list[[j]] <- tibble(sim_id = sim_id, threshold = h) |> dplyr::bind_cols(eva$per_change)
+      alarms_list[[j]]     <- tibble(sim_id = sim_id, threshold = h) |> dplyr::bind_cols(eva$alarms_df)
+    }
+    
+    list(
+      stats_mat = stats_mat,
+      per_change = dplyr::bind_rows(per_change_list),
+      alarms     = dplyr::bind_rows(alarms_list)
+    )
+  }
+  
+  sims <- future.apply::future_lapply(seq_len(n_sim), one_sim, future.seed = TRUE)
+  
+  # Agregación
+  stats_arr <- simplify2array(lapply(sims, `[[`, "stats_mat"))
+  stats_sum <- apply(stats_arr, c(1,2), sum)
+  colnames(stats_sum) <- c("TP","MISS","FA","OSEG")
+  TP   <- stats_sum[,"TP"]; MISS <- stats_sum[,"MISS"]; FA <- stats_sum[,"FA"]; OSEG <- stats_sum[,"OSEG"]
+  
+  per_change_all <- rbindlist(lapply(sims, `[[`, "per_change"))
+  per_change_summ <- per_change_all[, .(
+    seg_len          = mean(seg_len),
+    recall_j         = mean(tp),
+    miss_rate_j      = 1 - mean(tp),
+    mean_delay_j     = mean(delay, na.rm = TRUE),
+    median_delay_j   = median(delay, na.rm = TRUE),
+    iqr_delay_j      = IQR(delay, na.rm = TRUE),
+    norm_delay_j     = mean(delay / seg_len, na.rm = TRUE),
+    extras_after_tp_j= mean(extras_after_tp),
+    fa_in_segment_j  = mean(fa_in_segment)
+  ),
+  by = .(threshold, change_id)
+  ]
+  delay_by_h <- per_change_all[, .(mean_delay = mean(delay, na.rm = TRUE)), by = .(threshold)]
+  
+  dt_h <- data.table(threshold = h_vals)
+  dt_h[, recall := TP / (J * n_sim)]
+  dt_h[, miss_rate := 1 - recall]
+  dt_h[, precision := ifelse(TP + FA > 0, TP / (TP + FA), NA_real_)]
+  dt_h[, fa_per_1000 := FA / (n_stream * n_sim) * 1000]
+  dt_h[, alarms_per_1000 := (TP + FA) / (n_stream * n_sim) * 1000]
+  dt_h[, overseg_ratio := ifelse(TP > 0, OSEG / TP, NA_real_)]
+  
+  dt_h <- merge(dt_h, as.data.table(delay_by_h), by = "threshold", all.x = TRUE)
+  dt_h[, log_delay := log10(1 + mean_delay)]
+  
+  list(
+    summary    = as_tibble(dt_h),
+    per_change = as_tibble(per_change_summ),
+    alarms     = as_tibble(rbindlist(lapply(sims, `[[`, "alarms")))
+  )
+}
