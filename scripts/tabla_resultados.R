@@ -4,7 +4,7 @@ library(readr)
 library(stringr)
 
 
-df <- readRDS("data/prueba_fast.rds")
+df <- readRDS("data/prueba_modhist.rds")
 
 # Columnas esperadas: Method, scenario_key, p_false_alarm, mean_delay
 df <- df %>%
@@ -35,6 +35,7 @@ detect_ncm <- function(UP) {
     str_detect(UP, "\\bMAD\\b")                ~ "MAD",
     str_detect(UP, "\\bKNN\\b")                ~ "KNN",
     str_detect(UP, "\\bLNR\\b|LIKELIHOOD|\\bLR\\b") ~ "LR",
+    str_detect(UP, "\\bIQR\\b") ~ "IQR",
     TRUE ~ NA_character_
   )
 }
@@ -55,7 +56,7 @@ df$NCM <- detect_ncm(Method_up)
 df$BF  <- detect_bf(Method_up)
 
 # --- Filtros solicitados ---
-allowed_ncm <- c("MAD","LR","KNN")
+allowed_ncm <- c("MAD","LR","KNN", "IQR")
 allowed_bf  <- c("Constant BF","Mixture BF","Histogram BF","Precomputed KDE BF")
 
 df_f <- df %>%
