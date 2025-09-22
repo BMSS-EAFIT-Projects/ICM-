@@ -106,13 +106,22 @@ Precomputed_KDE_BF <- function(training_set,
 
 #HISTOGRAM BF
 #refer to this article "A histogram based betting function for conformal martingales".
-
-histogram_betting_function <- function(p_values, new_p, i, num_bins = 10, ...) {
-  if (length(p_values) == 0) return(1)  # No apostar si no hay historial
+histogram_betting_function <- function(p_values, new_p, i, num_bins = 10L) {
+  n <- length(p_values) + 1L
+  if (n <= 1L) return(1)
   
-  breaks <- seq(0, 1, length.out = num_bins + 1)
-  counts <- hist(p_values, breaks = breaks, plot = FALSE)$counts
-  bin_index <- findInterval(new_p, breaks, rightmost.closed = TRUE)
-  density <- if (sum(counts) == 0) 1 else (counts[bin_index] / sum(counts)) * num_bins
-  return(max(density, 1e-10))
+  clamp01 <- function(x) pmin(1, pmax(0, x))
+  new_p <- clamp01(new_p)
+  p_prev <- clamp01(p_values)
+  
+  bin_of <- function(p) {
+    b <- ceiling(p * k)
+    pmax(1L, pmin(k, b))
+  }
+  
+  counts <- tabulate(bin_of(p_prev), nbins = k)
+  
+  j <- bin_of(new_p)
+  if (counts[j] == 0L) return(1)
+  k * counts[j] / (n - 1L)
 }
