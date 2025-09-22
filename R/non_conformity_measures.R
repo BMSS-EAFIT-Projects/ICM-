@@ -30,3 +30,11 @@ Non_conformity_MAD <- function(xi, training_set, K=NULL,...){
   score <- abs(xi - med) / (mad_val + 1e-8)
   return(score)
 }
+
+#IQR
+Non_conformity_IQR <- function(xi, training_set, k=NULL,...){
+  qs <- as.numeric(quantile(training_set, probs = c(0.25, 0.5, 0.75), type = 8, names = FALSE))
+  width <- max(qs[3] - qs[1], 1e-12)
+  abs(xi - qs[2]) / width
+}
+
