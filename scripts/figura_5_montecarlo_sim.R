@@ -11,7 +11,7 @@ library(future.apply)
 workers_use <- max(1, parallel::detectCores(logical = FALSE) - 1)
 plan(multisession, workers = workers_use)       
 
-# 1) Cargar todas las funciones base
+# 1) Cargar todas las funciones base-----------------------------------
 source("R/non_conformity_measures.R")
 source("R/betting_functions.R")
 source("R/icm_method.R")
@@ -19,7 +19,7 @@ source("R/montecarlo_helpers.R")
 source("R/montecarlo_function.R")
 source("R/oracles.R")
 
-# 2) Cargar la betting function precomputada (Generada por calibrar_kde.R)
+# 2) Cargar la betting function precomputada (Generada por calibrar_kde.R)-----
 kde_bf_fixed <- readRDS("data/kde_bf_fixed.rds")
 
 make_ncm_LR <- function(mu_shift) {
@@ -28,10 +28,10 @@ make_ncm_LR <- function(mu_shift) {
   }
 }
 
-# 3) Definir escenarios y parámetros
+# 3) Definir escenarios y parámetros-------------------------------------------
 theta_vals <- c(100, 200)
 mu1_vals   <- c(1, 1.5, 2)
-h_vals     <- seq(1, 6, 0.5)
+h_vals     <- seq(1, 9, 0.5)
 n_sim      <- 1000
 m          <- 200
 k_par      <- 7
@@ -47,9 +47,9 @@ for (theta_s in theta_vals) {
     # ------ NCM y BFs para este salto de media --------------------------------
     ncm_tbl <- tibble(
       ncm_fun  = list(Non_conformity_KNN,
-                      make_ncm_LR(mu1_s), Non_conformity_MAD),
-      ncm_lbl  = c("KNN", "LR", "MAD"),
-      needs_k  = c(TRUE,  FALSE, FALSE)
+                      make_ncm_LR(mu1_s), Non_conformity_MAD, Non_conformity_IQR),
+      ncm_lbl  = c("KNN", "LR", "MAD", "IQR"),
+      needs_k  = c(TRUE,  FALSE, FALSE, FALSE)
     )
     
     bet_tbl <- tibble(
@@ -173,7 +173,7 @@ for (theta_s in theta_vals) {
     all_results[[paste0("θ=", theta_s, "_μ1=", mu1_s)]]  <- combined_summary
     all_taus_tbl[[paste0("θ=", theta_s, "_μ1=", mu1_s)]] <- combined_taus
     secs <- as.numeric(difftime(Sys.time(), t_scen, units = "secs"))
-    cat(sprintf("⏱️ Escenario θ=%s, μ1=%s listo en %.1f s (%.1f min)\n",
+    cat(sprintf(" Escenario θ=%s, μ1=%s listo en %.1f s (%.1f min)\n",
                 theta_s, mu1_s, secs, secs/60))
   }
 }
@@ -181,11 +181,11 @@ for (theta_s in theta_vals) {
 df_all_methods <- bind_rows(all_results,  .id = "scenario_key")
 df_all_taus    <- bind_rows(all_taus_tbl, .id = "scenario_key")
 
-saveRDS(df_all_methods, file = "data/prueba_fast.rds")
-saveRDS(df_all_taus,    file = "data/prueba_fast_taus.rds") 
-cat("✅ Simulación con KNN y LR (parametrizado) completada.\n")
+saveRDS(df_all_methods, file = "data/prueba_modhist.rds")
+saveRDS(df_all_taus,    file = "data/prueba_fast_taus_modhist.rds") 
+cat(" Simulación con KNN y LR (parametrizado) completada.\n")
 
 secs_total <- as.numeric(difftime(Sys.time(), t_total, units = "secs"))
-cat(sprintf("⏰ Tiempo total: %.1f s (%.1f min)\n", secs_total, secs_total/60))
+cat(sprintf("Tiempo total: %.1f s (%.1f min)\n", secs_total, secs_total/60))
 
 plan(sequential)
