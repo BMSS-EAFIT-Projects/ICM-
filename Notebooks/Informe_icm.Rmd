@@ -89,12 +89,12 @@ En esta seccion se replican las graficas del paper guia expuestas en la seccion 
 Puntos de cambio: 100 y 200.
 saltos en la media: 1, 1.5 y 2
 ```{r}
-df_all_methods <- readRDS("../data/prueba_fast.rds")
+df_all_methods <- readRDS("../data/prueba_modhist.rds")
 ```
 
 #CONSTANT BF 2D
 ```{r}
-df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM"))
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -113,12 +113,12 @@ ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
     color = "Método"
   ) +
   theme(
-    strip.text.x     = element_text(size = 12, face = "bold"),
-    strip.text.y     = element_text(size = 12, face = "bold"),
+    strip.text.x     = element_text(size = 10, face = "bold"),
+    strip.text.y     = element_text(size = 10, face = "bold"),
     panel.spacing    = unit(0.6, "lines"),
     axis.text        = element_text(size = 10),
-    axis.title       = element_text(size = 12, face = "bold"),
-    plot.title       = element_text(size = 14, face = "bold"),
+    axis.title       = element_text(size = 10, face = "bold"),
+    plot.title       = element_text(size = 10, face = "bold"),
     legend.position  = "bottom"
   )
 ```
@@ -150,7 +150,7 @@ layout(
 
 # MIXTURE BF 2D
 ```{r}
-df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM"))
+df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle", "IQR Mixture BF + ICM"))
 ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -205,7 +205,7 @@ layout(
 
 # KDE PRECOMPUTADA 2D
 ```{r}
-df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM"))
+df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle"))
 ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -260,7 +260,7 @@ layout(
 ```
 #Histograma 2D
 ```{r}
-df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM"))
+df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle"))
 ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +

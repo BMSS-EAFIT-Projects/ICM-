@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(dplyr); library(tidyr); library(kableExtra); library(ggplot2); library(forcats); library(ggridges)
+library(dplyr); library(tidyr); library(kableExtra); library(ggplot2); library(forcats); library(ggridges); library(gt)
 
 ```
 
@@ -178,4 +178,28 @@ plot_mosaico_metodo(unique(df1$Method)[3], unique(df1$scenario_key)[3])
 ```{r}
 plot_mosaico_metodo(unique(df1$Method)[7], unique(df1$scenario_key)[3])
 ```
+# Valor esperado y box-plot
+```{r}
+resumen_tau <- taus %>%
+  group_by(scenario_key, Method, threshold) %>%
+  summarise(
+    n_total   = n(),
+    n_na      = sum(is.na(tau)),
+    n_obs     = n_total - n_na,
+    mean_tau  = mean(tau, na.rm = TRUE),
+    sd_tau    = sd(tau,   na.rm = TRUE),
+    se_tau    = sd_tau / sqrt(pmax(n_obs, 1)),
+    q25       = quantile(tau, 0.25, na.rm = TRUE),
+    median_tau= median(tau, na.rm = TRUE),
+    q75       = quantile(tau, 0.75, na.rm = TRUE)
+  ) %>%
+  ungroup()
+```
+```{r}
+resumen_ancho <- resumen_tau %>%
+  select(scenario_key, Method, threshold, mean_tau) %>%
+  pivot_wider(names_from = Method, values_from = mean_tau)
+```
+
+
 
