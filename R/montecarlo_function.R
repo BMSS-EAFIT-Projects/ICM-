@@ -454,3 +454,105 @@ montecarlo_ICM_MULTI_ADAPTIVE <- function(
     alarms     = as_tibble(rbindlist(lapply(sims, `[[`, "alarms")))
   )
 }
+
+#----------------------montecarlo outliers--------------------------------------
+montecarlo_ICM_contaminado <- function(
+    n_sim        = 200,
+    h_vals       = seq(1, 6, 0.5),
+    theta_stream = 100,
+    mu1          = 1,
+    m            = 200,
+    ncm_fun      = Non_conformity_KNN,
+    bet_fun      = Constant_BF,
+    k            = NULL,
+    params_bf    = list(),
+    n_stream     = 1000,
+    # --- Contaminación entrenamiento (SOLO shift / scale) ---------------------
+    train_contam_rate   = 0.05,
+    train_contam_model  = c("shift","scale"),
+    train_contam_params = list(delta = 6, lambda = 5),
+    # --- Contaminación stream (pre / post θ) ---------------------------------
+    pre_contam_rate     = 0.02,
+    pre_contam_model    = c("shift","scale"),
+    pre_contam_params   = list(delta = 6, lambda = 5),
+    post_contam_rate    = 0.02,
+    post_contam_model   = c("shift","scale"),
+    post_contam_params  = list(delta = 6, lambda = 5)
+){
+  `%||%` <- function(a,b) if (is.null(a)) b else a
+  if (is.null(k)) k <- 7L
+  
+  train_contam_model <- match.arg(train_contam_model)
+  pre_contam_model   <- match.arg(pre_contam_model)
+  post_contam_model  <- match.arg(post_contam_model)
+  
+  # -------- simulación de UNA réplica --------------------------------------
+  simulate_once <- function(sim_id){
+    # 1) Entrenamiento base + contaminación
+    training_set <- rnorm_base(m, 0, 1)
+    training_set <- contaminate(training_set, train_contam_rate, train_contam_model,
+                                train_contam_params, base_mu = 0, base_sd = 1)
+    
+    # 2) Stream con cambio súbito en θ
+    n1 <- theta_stream - 1L
+    n2 <- n_stream - theta_stream + 1L
+    
+    pre  <- rnorm_base(n1, 0, 1)
+    pre  <- contaminate(pre,  pre_contam_rate,  pre_contam_model,  pre_contam_params,
+                        base_mu = 0,  base_sd = 1)
+    
+    post <- rnorm_base(n2, mu1, 1)
+    post <- contaminate(post, post_contam_rate, post_contam_model, post_contam_params,
+                        base_mu = mu1, base_sd = 1)
+    
+    stream <- c(pre, post)
+    
+    # 3) alphas y p
+    alphas <- alphas_from_ncm(stream, training_set, ncm_fun, k = k)
+    p <- pvals_from_alphas(alphas)
+    
+    # 4) Trayectoria martingala y cruces
+    S <- icm_C_path_from_p(p, bet_fun, params_bf = params_bf)
+    tau <- first_cross_indices_linear(S, h_vals)
+    
+    # 5) Métricas
+    fa <- as.integer(!is.na(tau) & tau < theta_stream)
+    dl <- ifelse(is.na(tau) | tau < theta_stream, NA_real_, tau - theta_stream)
+    
+    list(fa = fa, delay = dl, tau = tau)
+  }
+  
+  sims <- future.apply::future_lapply(seq_len(n_sim), simulate_once, future.seed = TRUE)
+  
+  FALSE_ALARMS <- do.call(rbind, lapply(sims, `[[`, "fa"))
+  DELAYS       <- do.call(rbind, lapply(sims, `[[`, "delay"))
+  TAUS         <- do.call(rbind, lapply(sims, `[[`, "tau"))
+  
+  taus_wide <- as.data.frame(TAUS)
+  colnames(taus_wide) <- paste0("h_", seq_along(h_vals))
+  taus_wide$sim_id <- seq_len(nrow(taus_wide))
+  
+  taus_long <- tidyr::pivot_longer(
+    taus_wide,
+    cols = dplyr::starts_with("h_"),
+    names_to = "h_idx",
+    values_to = "tau"
+  ) |>
+    dplyr::mutate(
+      threshold_idx = as.integer(sub("h_", "", h_idx)),
+      threshold = h_vals[threshold_idx]
+    ) |>
+    dplyr::select(sim_id, threshold, tau)
+  
+  summary_df <- data.frame(
+    threshold     = h_vals,
+    p_false_alarm = colMeans(FALSE_ALARMS),
+    mean_delay    = colMeans(DELAYS, na.rm = TRUE),
+    theta_stream  = theta_stream,
+    mu1           = mu1
+  ) |>
+    dplyr::mutate(log_delay = log10(1 + mean_delay))
+  
+  list(summary = summary_df, taus = taus_long)
+}
+

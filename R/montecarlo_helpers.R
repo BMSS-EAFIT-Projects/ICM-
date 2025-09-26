@@ -497,3 +497,28 @@ ICM_multi_adaptive_fast <- function(stream_data,
     return(list(change_points_stream = cps[seq_len(n_cps)]))
   }
 }
+
+#------------------------ Helper outlier contamination-------------------------
+rnorm_base <- function(n, mu, sd) stats::rnorm(n, mean = mu, sd = sd)
+
+contaminate <- function(x, rate, model, params, base_mu = 0, base_sd = 1){
+  stopifnot(rate >= 0, rate <= 1)
+  n <- length(x)
+  if (n == 0L || rate <= 0) return(x)
+  
+  idx <- which(stats::runif(n) < rate)
+  if (length(idx) == 0L) return(x)
+  
+  delta  <- params$delta  %||% 6     # para "shift"
+  lambda <- params$lambda %||% 5     # para "scale"
+  
+  if (model == "shift") {
+    x[idx] <- stats::rnorm(length(idx), mean = base_mu + delta, sd = base_sd)
+  } else if (model == "scale") {
+    x[idx] <- stats::rnorm(length(idx), mean = base_mu, sd = base_sd * lambda)
+  } else {
+    stop("Modelo de contaminación no soportado: usa 'shift' o 'scale'.")
+  }
+  x
+}
+
