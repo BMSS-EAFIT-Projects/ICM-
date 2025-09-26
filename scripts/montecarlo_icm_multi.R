@@ -57,7 +57,7 @@ bet_tbl <- tibble(
   bet_fun   = list(Constant_BF, Mixture_BF, kde_bf_fixed, histogram_betting_function),
   bet_lbl   = c("Constant BF", "Mixture BF", "Precomputed KDE BF", "Histogram BF"),
   params_bf = list(
-    list(), list(), list(), list(num_bins = 20)
+    list(), list(), list(), list(num_bins = 2)
   )
 )
 
