@@ -106,22 +106,29 @@ Precomputed_KDE_BF <- function(training_set,
 
 #HISTOGRAM BF
 #refer to this article "A histogram based betting function for conformal martingales".
-histogram_betting_function <- function(p_values, new_p, i, num_bins = 10L) {
-  n <- length(p_values) + 1L
-  if (n <= 1L) return(1)
-  
-  clamp01 <- function(x) pmin(1, pmax(0, x))
-  new_p <- clamp01(new_p)
+histogram_betting_function <- function(p_values, new_p, num_bins = 2L, ...) {
+  # Asegurar tipos y dominio
+  k <- as.integer(num_bins)
+  if (k < 1L) stop("k debe ser >= 1")
+  clamp01 <- function(x) pmin(1, pmax(0, as.numeric(x)))
   p_prev <- clamp01(p_values)
+  p_new  <- clamp01(new_p)
   
-  bin_of <- function(p) {
-    b <- ceiling(p * k)
-    pmax(1L, pmin(k, b))
-  }
+  # Si no hay historial aún, no apostar (regla del paper)
+  n_prev <- length(p_prev)
+  if (n_prev == 0L) return(1)
+  
+  # Asignación de bins: B1=[0,1/k), ..., Bk=[(k-1)/k, 1]
+  bin_of <- function(p) pmax(1L, pmin(k, ceiling(p * k)))
   
   counts <- tabulate(bin_of(p_prev), nbins = k)
+  j <- bin_of(p_new)
   
-  j <- bin_of(new_p)
+  # Si el bin de p_new está vacío, usar 1 para no anular la martingala (regla del paper)
   if (counts[j] == 0L) return(1)
-  k * counts[j] / (n - 1L)
+  
+  # Ecuación (4): densidad por histograma
+  (counts[j] * k) / n_prev
 }
+
+
