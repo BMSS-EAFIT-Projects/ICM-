@@ -59,7 +59,7 @@ for (theta_s in theta_vals) {
         list(),                    # Constant no necesita nada
         list(),                    # Mixture tampoco
         list(),                    # Precomputed KDE tampoco
-        list(num_bins = 20)        # Histogram sí
+        list(num_bins = 2)        # Histogram sí
       )
     )
     
