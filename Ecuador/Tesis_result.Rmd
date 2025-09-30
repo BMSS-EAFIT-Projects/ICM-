@@ -50,7 +50,7 @@ La **tabla** que acompaña a las gráficas resume, por **escenario**, el **retar
 
 ## Funcion de apuesta constante
 ```{r CBFchart, echo=FALSE}
-df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle"))
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle", "IQR Constant BF + ICM"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
