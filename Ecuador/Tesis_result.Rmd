@@ -892,9 +892,9 @@ ggplot(KNN_sens_summary,
   theme_minimal(base_size = 12)
 ```
 
-este mapa de calor evidencia como para diferentes valores k el promedio de los retardos medios varia en algunos casos mas evidente que en otros como por ejemoplo la funcion de apuesta histograma la cual evidencia mayor variabilidad cuando el cambio es pequeño es decirf salto en la media mu=1, para los demas escenarios el comportamiento parece mas uniforme salvo en los valores de K= 1 y k=200 donde parece haber un incremento en los retardos medios.
+Este mapa de calor muestra que, para distintos valores de \(K\), el **promedio del retardo medio** cambia en magnitud y patrón. La variación es más notoria con la **función de apuesta de histograma**, especialmente cuando el cambio es pequeño (salto en la media \(\mu = 1\)), donde se observa mayor variabilidad. En los demás escenarios el comportamiento luce más uniforme, salvo en los extremos \(K = 1\) y \(K = 200\), donde aparece un incremento del retardo medio.
 
-Para exhibir una mejor comparativa se presentan las siguientes graficas 
+Para una comparación más clara, a continuación se presentan las siguientes gráficas.
 
 ## Funcion de apuesta constante
 
