@@ -2,3 +2,15 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# --- Salidas de notebooks (no versionar) ---
+Notebooks/*.nb.html
+Notebooks/*.html
+notebooks/*.nb.html
+notebooks/*.html
+
+# --- Temporales de R / RStudio ---
+*.RDataTmp
+*.RData
+*.Rhistory
+.Rproj.user/
