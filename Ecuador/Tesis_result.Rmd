@@ -1,0 +1,1119 @@
+---
+title: "Tesis_Results"
+output: html_document
+date: "2025-09-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, echo=FALSE)
+```
+
+```{r packages, message=FALSE, echo=FALSE,warning=FALSE}
+library(dplyr); library(tidyr); library(kableExtra); library(ggplot2); library(forcats); library(ggridges); library(gt); library(readr);library(stringr)
+```
+
+# Reporte de resultados tesis ICM
+
+## Resultados: ICM con NCM MAD e IQR
+
+A continuación se presentan los resultados de las implementaciones **ICM** usando como medidas de no conformidad **MAD** e **IQR**.  
+Los primeros análisis se inspiran en las gráficas y tablas de *Vovk et al.*, en el artículo **“Inductive Conformal Martingales”**.
+
+### Escenarios evaluados
+
+- **cambio en \(t=100\)**  
+  Serie con media base \(\mu=0\) y un salto a partir de \(t=100\) (p.ej., \(\mu=1\)).
+
+- **cambio en \(t=200\)**  
+  Serie con media base \(\mu=0\) y un salto a partir de \(t=200\) (p.ej., \(\mu=1\)).
+
+- **saltos en la media**  
+  Secuencia de niveles \(\mu \in \{\ 1,\ 1.5,\ 2\}\) .  
+  Los instantes de cambio se documentan en las figuras/tablas correspondientes del experimento.
+
+### Carga de datos
+```{r cargadatos, echo=FALSE}
+df_all_methods <- readRDS("../data/prueba_modhist.rds")
+table_results <-  readRDS("../data/tabla_delays.rds")
+```
+
+# Mean-Delay vs FALSE ALARM
+Las siguientes figuras muestran la relación entre la **tasa de falsas alarmas** y el **retardo medio de detección** para cada **medida de no conformidad** (MAD, IQR) evaluada bajo cada **función de apuesta**.  
+Cada punto en las curvas corresponde a un umbral \(h\) distinto; al mover \(h\), cambian simultáneamente la tasa de falsas alarmas y el retardo medio.
+
+- **Tasa de falsas alarmas (FA):** proporción de alarmas que no caen antes del cambio verdadero. En las gráficas se reporta como probabilidad (p.ej., 5%, 10%).  
+- **Retardo medio (mean delay):** promedio del tiempo transcurrido entre el instante del cambio verdadero y la **primera** alarma posteriro al cambio.
+
+La **tabla** que acompaña a las gráficas resume, por **escenario**, el **retardo medio** alcanzado en dos niveles operativos de control de falsas alarmas:
+- **FA = 5%**
+- **FA = 10%**
+
+## Funcion de apuesta constante
+```{r CBFchart, echo=FALSE}
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle", "IQR Constant BF + ICM"))
+ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: Constant BF vs Oráculos",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 10, face = "bold"),
+    strip.text.y     = element_text(size = 10, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 10, face = "bold"),
+    plot.title       = element_text(size = 10, face = "bold"),
+    legend.position  = "right"
+  )
+```
+
+```{r CBFtable, echo=FALSE}
+print_bf <- function(bf_name,
+                     ncm_order = c("LR","KNN","MAD", "IQR"),
+                     scenario_label_fun = function(s) gsub("_", ", ", s)) {
+
+  stopifnot(all(c("BF","scenario_key","NCM","delay_5","delay_10") %in% names(table_results)))
+
+  x <- dplyr::filter(table_results, BF == bf_name)
+  if (nrow(x) == 0) { cat("Sin filas para BF =", bf_name, "\n"); return(invisible(NULL)) }
+
+  ncm_order <- ncm_order[ncm_order %in% unique(x$NCM)]
+  if (length(ncm_order) == 0) ncm_order <- sort(unique(x$NCM))
+
+  tab5 <- x %>%
+    dplyr::select(scenario_key, NCM, delay_5) %>%
+    dplyr::mutate(NCM = factor(NCM, levels = ncm_order)) %>%
+    dplyr::arrange(scenario_key, NCM) %>%
+    tidyr::pivot_wider(names_from = NCM, values_from = delay_5)
+
+  tab10 <- x %>%
+    dplyr::select(scenario_key, NCM, delay_10) %>%
+    dplyr::mutate(NCM = factor(NCM, levels = ncm_order)) %>%
+    dplyr::arrange(scenario_key, NCM) %>%
+    tidyr::pivot_wider(names_from = NCM, values_from = delay_10)
+
+  for (cc in ncm_order) {
+    if (!cc %in% names(tab5))  tab5[[cc]]  <- NA_real_
+    if (!cc %in% names(tab10)) tab10[[cc]] <- NA_real_
+  }
+
+  final_tbl <- dplyr::left_join(tab5, tab10, by = "scenario_key", suffix = c("_5","_10")) %>%
+    dplyr::mutate(`Param., Probab. of FA` = scenario_label_fun(scenario_key)) %>%
+    dplyr::select(`Param., Probab. of FA`,
+                  tidyselect::all_of(paste0(ncm_order,"_5")),
+                  tidyselect::all_of(paste0(ncm_order,"_10")))
+
+  k <- length(ncm_order)
+  lbl5  <- if (knitr::is_latex_output()) "5\\%"  else "5%"
+  lbl10 <- if (knitr::is_latex_output()) "10\\%" else "10%"
+
+  kableExtra::kbl(
+    final_tbl, booktabs = TRUE,
+    align = c("l", rep("r", 2*k)),
+    col.names = c("Param.,\\ Probab. of FA", ncm_order, ncm_order),
+    caption = paste("Betting function:", bf_name)
+  ) %>%
+    kableExtra::add_header_above(c(" " = 1, setNames(k, lbl5), setNames(k, lbl10))) %>%
+    kableExtra::column_spec(1 + k + 1, border_left = TRUE) %>%
+    kableExtra::kable_styling(full_width = FALSE, bootstrap_options = c("striped","condensed"))
+}
+print_bf("Constant BF")
+```
+
+## Funcion de apuesta mixta
+```{r}
+df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle", "IQR Mixture BF + ICM"))
+ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: Mixture BF vs Oráculos",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "right"
+  )
+
+```
+
+```{r}
+print_bf("Mixture BF")
+```
+
+## Funcion de apuesta con KDE precomputada
+```{r}
+df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "IQR Precomputed KDE BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle"))
+ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: KDE PRECOMPUTED BF vs Oráculos",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "right"
+  )
+```
+
+```{r}
+print_bf("Precomputed KDE BF")
+```
+
+### Funcion de apuesta con histograma
+```{r}
+df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM", "IQR Histogram BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle"))
+ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0,0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: HISTOGRAM BF vs Oráculos",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "right"
+  )
+```
+
+```{r}
+print_bf("Histogram BF")
+```
+### Metodologia de estos resultados
+En cada escenario se simula una secuencia de longitud \(n = 1000\) con un **único punto de cambio** en
+\(\theta \in \{100, 200\}\).
+Antes del cambio se genera \(Z_t \sim \mathcal{N}(0,1)\) y después
+\(Z_t \sim \mathcal{N}(\mu,1)\) con \(\mu \in \{1,\ 1.5,\ 2\}\).
+
+Para construir las **medidas de no conformidad** (NCM) se utiliza un **conjunto de entrenamiento fijo**
+de tamaño \(m = 200\), muestreado de \(\mathcal{N}(0,1)\).
+
+Cada combinación \((\theta,\ \mu)\) \(\times\) (NCM \(\times\) BF \(\times\) método) se **replica 1000 veces** y,
+en cada corrida, se evalúan umbrales en la rejilla \(h \in \{1,\ 1.5,\ \dots,\ 9\}\).
+
+### Conclusiones
+La **LIKELIHOOD RATIO (LR)** muestra el **mejor desempeño**. Este resultado es esperable: LR requiere conocer **con exactitud** el modelo de cambio, algo poco realista en la práctica del análisis de puntos de cambio.
+
+Entre las medidas no paramétricas, **KNN**, **MAD** e **IQR** ofrecen resultados similares; no obstante, **MAD** e **IQR** son **marginalmente superiores**, con **retardos medios** algo menores. Si bien la mejora no es enorme, tienen una **ventaja práctica** clara: **no requieren ajuste de hiperparámetros**, a diferencia de **KNN**, que necesita fijar un \(k\) y puede introducir **sensibilidad** del método a esa elección.
+
+
+Más adelante presentamos resultados de **sensibilidad a \(k\)** para KNN, mostrando cómo varía el desempeño al cambiar este parámetro.
+
+
+# Convergencia de deteccion
+En esta sección mostramos gráficas que ilustran cómo **convergen** las alarmas del método hacia el **instante real de cambio** a medida que el umbral \(h\) aumenta (es decir, el detector se vuelve más estricto)
+
+```{r}
+tau_alarms <- readRDS("../data/prueba_fast_taus_modhist.rds")
+```
+
+```{r}
+tb <- tau_alarms %>%
+  mutate(
+    scenario      = coalesce(as.character(scenario_key), as.character(scenario_id)),
+    bf            = na_if(trimws(as.character(bf)), ""),
+    ncm           = as.factor(ncm),
+    threshold     = parse_number(as.character(threshold)),
+    tau           = parse_number(as.character(tau)),
+    theta_stream  = parse_number(as.character(theta_stream))
+  ) %>%
+  filter(!is.na(bf), !is.na(scenario)) %>%   # <---- quita categoría NA
+  mutate(bf = fct_drop(as.factor(bf)),
+         ncm = fct_drop(ncm))
+
+# 2) θ por panel (sin NA)
+ref_theta <- tb %>%
+  group_by(scenario, bf) %>%
+  summarise(theta_stream = first(na.omit(theta_stream)), .groups = "drop")
+
+# 3) τ medio por umbral (solo detecciones)
+summ_mean <- tb %>%
+  group_by(scenario, bf, ncm, threshold) %>%
+  summarise(
+    det_n    = sum(!is.na(tau)),
+    det_rate = mean(!is.na(tau)),
+    tau_mean = if (det_n > 0) mean(tau, na.rm = TRUE) else NA_real_,
+    .groups  = "drop"
+  ) %>%
+  filter(!is.na(tau_mean)) %>%
+  mutate(bf = fct_drop(bf), ncm = fct_drop(ncm))
+```
+
+
+```{r}
+esc_levels <- tb %>% distinct(scenario) %>% pull(scenario) %>% as.character()
+summ_mean  <- summ_mean %>% mutate(scenario = factor(as.character(scenario), levels = esc_levels))
+ref_theta  <- ref_theta %>%  mutate(scenario = factor(as.character(scenario), levels = esc_levels))
+
+# Función: una figura por BF con 6 escenarios facetados
+plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3) {
+  dmean <- df_mean %>% filter(bf == bf_sel)
+  dref  <- df_ref  %>% filter(bf == bf_sel)
+
+  ggplot(dmean, aes(x = threshold, y = tau_mean, color = ncm, group = ncm)) +
+    geom_hline(data = dref, aes(yintercept = theta_stream),
+               color = "red", linetype = "dashed", linewidth = 0.6) +
+    geom_line(aes(alpha = det_rate), linewidth = 0.9) +
+    geom_point(aes(alpha = det_rate), size = 1.6) +
+    scale_alpha(range = c(0.35, 1), guide = "none") +
+    facet_wrap(vars(scenario), ncol = ncol, scales = "free_y") +
+    labs(
+      title = paste("Convergencia de τ medio a θ —", as.character(bf_sel)),
+      subtitle = "Línea roja: θ real. Transparencia ~ tasa de detección por umbral.",
+      x = "Umbral", y = "τ medio (solo detecciones)", color = "NCM"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(legend.position = "bottom")
+}
+```
+
+
+## Grafico de convergencia Funcion de apuesta cosntante
+
+
+```{r}
+bf_demo <- levels(summ_mean$bf)[1]
+plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
+```
+
+
+## Grafico convergencia funcion de apuesta mixta
+
+
+```{r}
+bf_demo <- levels(summ_mean$bf)[3]
+plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
+```
+
+## Grafico de convergencia funcion KDE precomputada
+
+
+```{r}
+bf_demo <- levels(summ_mean$bf)[4]
+plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
+```
+
+## Grafico de convergencia funcion de apuesta histograma
+```{r}
+bf_demo <- levels(summ_mean$bf)[2]
+plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
+```
+
+
+### metodologia
+
+
+La metodología es análoga a la descrita en la sección anterior, con una **única diferencia**:  
+aquí **no** se calculan ni la tasa de falsas alarmas (FA) ni el retardo medio.  
+En su lugar:
+
+1. Para cada umbral \(h\) y cada simulación, se **registra el índice** \(\widehat{c}(h)\) donde el método detecta el cambio (cuando hay detección).
+2. Se **promedian** esos índices sobre las \(n_{\text{sim}}\) simulaciones disponibles.
+3. Se **grafica** el **valor promedio de detección** \(\mathbb{E}[\widehat{c}(h)]\) (o su mediana) **en función de \(h\)**.
+
+
+### Conclusiones
+En las gráficas se observa que la **media del tiempo de detección** crece con el umbral y, en la mayoría de los casos, **se estabiliza cerca del punto de cambio real**. Sin embargo, si el umbral aumenta demasiado, la martingala puede **no disparar ninguna alarma** cuando la magnitud del cambio es insuficiente.
+
+
+
+Como era de esperarse, la **tendencia general es monótonamente creciente**: a mayor umbral (y, por ende, mayor capital/índice requerido), **mayor** es el tiempo de detección.
+
+**Nota importante.** Cuando la curva **no** es monótonamente creciente, suele deberse a que **algunas simulaciones no generan alarma**; al promediar, estas “alarmas faltantes” sesgan el cálculo y pueden producir un **decrecimiento aparente** de la media, especialmente con umbrales muy altos en escenarios de cambios pequeños (p. ej., KNN con \(\mu = 1\)).
+
+
+
+# Algoritmos de deteccion multiple
+
+## Comparación de algoritmos para detección de múltiples puntos de cambio
+
+En esta sección comparamos el desempeño de dos algoritmos:
+
+- **ICM_multi**: utiliza un conjunto de entrenamiento **fijo** definido al inicio y detecta los cambios con respecto a ese conjunto.
+- **ICM_adaptive**: comienza con un conjunto de entrenamiento, pero **lo actualiza** (reentrena) cada vez que se dispara una alarma.
+
+### Escenarios evaluados
+
+- **S1 — UP/DOWN**  
+  Cambios verdaderos en \( (300,\,700) \).  
+  La media \(\mu\) sigue los niveles \( \{0,\,1.5,\,0\} \) (salto hacia arriba y luego hacia abajo), de ahí el nombre **UP/DOWN**.
+
+- **S2 — UP/UP**  
+  Cambios verdaderos en \( (200,\,600,\,1000) \).  
+  La media \(\mu\) toma los niveles \( \{0,\,1.0,\,2.0,\,3.0\} \) (saltos sucesivos hacia arriba), de ahí el nombre **UP/UP**.
+
+**Nota:** todas las series de tiempo simuladas tienen **longitud 1500** observaciones.
+
+```{r}
+multi_summary <- readRDS("../data/multi_summary.rds")
+multi_change <- readRDS("../data/multi_perchange.rds")
+```
+
+```{r}
+# df = tu tabla del screenshot
+df2 <- multi_summary %>%
+  filter(!is.na(ncm), !is.na(bf), !is.na(Method), !is.na(scenario_group)) %>%
+  mutate(
+    mode_raw = str_trim(str_replace(Method, ".*\\+\\s*", "")),
+    mode = case_when(
+      str_detect(mode_raw, regex("adaptive", TRUE)) ~ "ICM-adaptive",
+      str_detect(mode_raw, regex("multi",    TRUE)) ~ "ICM-multi",
+      TRUE ~ mode_raw
+    ),
+    ncm = fct_inorder(ncm),
+    bf  = fct_inorder(bf),
+    mode = factor(mode, levels = c("ICM-multi","ICM-adaptive")),
+    scenario_group = fct_inorder(scenario_group)
+  )
+
+metrics_globales <- c("precision")
+
+sum_long <- df2 %>%
+  select(scenario_group, threshold, bf, ncm, mode, all_of(metrics_globales)) %>%
+  pivot_longer(all_of(metrics_globales), names_to = "metric", values_to = "value") %>%
+  mutate(metric = factor(metric, levels = metrics_globales,
+                         labels = c("Precisión")))
+
+ggplot(sum_long,
+       aes(x = threshold, y = value,
+           color = ncm, linetype = mode, shape = mode,
+           group = interaction(ncm, mode))) +
+  geom_line(position = position_dodge(width = 0.06), linewidth = 0.7) +
+  geom_point(position = position_dodge(width = 0.06), size = 1.8, stroke = 0.3) +
+  facet_grid(metric + scenario_group ~ bf, scales = "free_y") +
+  scale_linetype_manual(values = c("ICM-multi"="solid","ICM-adaptive"="longdash")) +
+  scale_shape_manual(values = c("ICM-multi"=16, "ICM-adaptive"=17)) + # círculo vs triángulo
+  labs(x="Umbral (h)", y="Recall", color="NCM", linetype="Modo", shape="Modo") +
+  theme_bw() + theme(panel.grid.minor = element_blank())
+```
+
+
+### Precisión vs. umbral en *ICM_multi* y *ICM_adaptive*
+
+
+La figura muestra el comportamiento esperado: a medida que el umbral \(h\) **aumenta**, la **precisión** se **eleva** y tiende a 1.
+
+Definimos la precisión como
+\[
+\text{precisión} \;=\; \frac{\text{TP}}{\text{TP}+\text{FA}},
+\]
+donde **TP** son verdaderos positivos (alarmas válidas dentro de la ventana del cambio) y **FA** son falsas alarmas.  
+Al incrementar \(h\), el detector exige mayor evidencia y, por tanto, **disminuye \(\text{FA}\)**; en el límite, si \(\text{FA}\to 0\), entonces \(\text{precisión}\to 1\).
+
+Los casos en los que **no** se observa una tendencia estricta hacia 1 se explican porque, además de caer \(\text{FA}\), también pueden **perderse TP** cuando \(h\) es demasiado alto (p. ej., cambios de **pequeña magnitud** o ventanas de aceptación estrictas). En esos escenarios, la precisión **satura** por debajo de 1 o presenta pequeñas mesetas.
+
+
+```{r}
+metrics_globales <- c("recall")
+
+sum_long <- df2 %>%
+  select(scenario_group, threshold, bf, ncm, mode, all_of(metrics_globales)) %>%
+  pivot_longer(all_of(metrics_globales), names_to = "metric", values_to = "value") %>%
+  mutate(metric = factor(metric, levels = metrics_globales,
+                         labels = c("recall")))
+
+ggplot(sum_long,
+       aes(x = threshold, y = value,
+           color = ncm, linetype = mode, shape = mode,
+           group = interaction(ncm, mode))) +
+  geom_line(position = position_dodge(width = 0.06), linewidth = 0.7) +
+  geom_point(position = position_dodge(width = 0.06), size = 1.8, stroke = 0.3) +
+  facet_grid(metric + scenario_group ~ bf, scales = "free_y") +
+  scale_linetype_manual(values = c("ICM-multi"="solid","ICM-adaptive"="longdash")) +
+  scale_shape_manual(values = c("ICM-multi"=16, "ICM-adaptive"=17)) + # círculo vs triángulo
+  labs(x="Umbral (h)", y="Recall", color="NCM", linetype="Modo", shape="Modo") +
+  theme_bw() + theme(panel.grid.minor = element_blank())
+```
+
+
+
+### Recall en *ICM_multi* vs *ICM_adaptive*
+
+El **recall** se calcula como
+\[
+\text{recall} \;=\; \frac{\#\{(\text{sim},j)\mid \text{TP}\}}{J \times n_{\text{sim}}},
+\]
+donde \(J\) es el número de cambios del escenario, \(n_{\text{sim}}\) el número total de simulaciones y
+\(\#\{(\text{sim},j)\mid \text{TP}\}\) el número de pares (simulación, cambio) correctamente detectados.
+
+**ICM_multi (sin reentrenamiento).**  
+En **S1**, el recall es **decreciente**: al no reentrenar, cuando ocurre el segundo cambio el método suele no detectarlo con umbrales altos, por lo que el recall tiende a \(\approx 0.5\) (se detecta, en promedio, uno de los dos cambios por simulación).  
+En **S2**, el recall decrece **mucho menos**: como los cambios son incrementos sucesivos de la media, el conjunto de entrenamiento inicial resulta suficientemente informativo y el método mantiene buena capacidad de detección.
+
+**ICM_adaptive (con reentrenamiento).**  
+En **S1**, el recall muestra un **comportamiento creciente** con \(h\). A medida que aumenta el umbral, disminuyen las **falsas alarmas**; al haber menos falsas alarmas, el método **reentrena con menor frecuencia** y lo hace en **zonas más estables**, mejorando la detección de los cambios verdaderos.  
+En **S2**, el comportamiento es **parabólico (en U)**: con \(h\) bajos, la reducción de falsas alarmas vuelve los reentrenamientos más **limpios** y el recall **sube**; pero, a partir de cierto \(h\), las alarmas se vuelven más **escasas o tardías** y algunos cambios dejan de tener una alarma válida dentro de su ventana de emparejamiento, por lo que el recall **vuelve a bajar**.
+
+
+```{r}
+fa_df <- multi_summary %>%
+  filter(!is.na(bf), !is.na(ncm), !is.na(Method), !is.na(fa_per_1000)) %>%
+  mutate(
+    # Modo = texto después del "+"
+    mode = str_trim(str_replace(Method, ".*\\+\\s*", "")),
+    mode = case_when(
+      str_detect(mode, regex("adaptive", TRUE)) ~ "ICM-adaptive",
+      str_detect(mode, regex("multi",    TRUE)) ~ "ICM-multi",
+      TRUE ~ mode
+    ),
+    bf  = fct_inorder(bf),
+    ncm = fct_inorder(ncm),
+    mode = factor(mode, levels = c("ICM-multi","ICM-adaptive"))
+  ) %>%
+  distinct(bf, ncm, mode, threshold, fa_per_1000) # por si hay filas repetidas por escenario
+
+ggplot(fa_df, aes(x = threshold, y = fa_per_1000, color = ncm, linetype = mode, shape = mode)) +
+  geom_line() +
+  geom_point(size = 1.5) +
+  facet_wrap(~ bf, scales = "free_y") +
+  scale_linetype_manual(values = c("solid","dashed")) +
+  labs(
+    title = "ICM — Falsas alarmas por 1,000 vs. umbral",
+    x = "Umbral (h)", y = "FA por 1,000",
+    color = "NCM", linetype = "Modo"
+  ) +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank())
+```
+
+
+Como era de esperarse, la **tasa de falsas alarmas** decrece a medida que el **umbral \(h\)** aumenta. Este resultado no sorprende: un \(h\) más alto exige **más evidencia** para disparar una alarma, por lo que es razonable que la proporción de falsas alarmas sea menor.
+
+> **Nota sobre la métrica graficada.** La tasa reportada es **FA por 1000 observaciones** (*FA/1000*), calculada como
+\[
+\text{FA/1000} \;=\; \frac{\#\text{FA}}{n_{\text{stream}} \times n_{\text{sim}}} \times 1000,
+\]
+donde \(\#\text{FA}\) es el número total de falsas alarmas agregadas en todas las simulaciones y
+\(n_{\text{stream}}\) es la longitud de cada secuencia.
+
+
+# Analisis de rendimiento en series de tiempo contaminadas
+
+En esta seccion se compara el sesempe;o de las medidas de no conformidad ante datos contaminados, es decir series de datos sinteticas a las cuales se les inyectan datos atipicos para estresar la capacidad de deteccion del metodo, las tablas presentadas en esta seccion corresponden a comapraciones de los metodos con datos atipicos.
+
+```{r}
+contaminated_summary <- readRDS("../data/prueba_contaminada.rds")
+tau_contaminated <- readRDS("../data/prueba_taus_contaminada.rds")
+table_results_contaminated <-  readRDS("../data/tabla_delays_contaminada.rds")
+```
+
+
+### Funcion de apuesta constante
+
+```{r}
+df_CBF_contam <- contaminated_summary %>% filter(Method %in% c("KNN Constant BF + ICM (contaminado)", "LR Constant BF + ICM (contaminado)", "MAD Constant BF + ICM (contaminado)", "IQR Constant BF + ICM (contaminado)"))
+ggplot(df_CBF_contam, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: Constant BF contaminada",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 10, face = "bold"),
+    strip.text.y     = element_text(size = 10, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 10, face = "bold"),
+    plot.title       = element_text(size = 10, face = "bold"),
+    legend.position  = "right"
+  )
+
+```
+
+```{r}
+print_bf_contaminada <- function(bf_name,
+                     ncm_order = c("LR","KNN","MAD", "IQR"),
+                     scenario_label_fun = function(s) gsub("_", ", ", s)) {
+
+  stopifnot(all(c("BF","scenario_key","NCM","delay_5","delay_10") %in% names(table_results_contaminated)))
+
+  x <- dplyr::filter(table_results_contaminated, BF == bf_name)
+  if (nrow(x) == 0) { cat("Sin filas para BF =", bf_name, "\n"); return(invisible(NULL)) }
+
+  ncm_order <- ncm_order[ncm_order %in% unique(x$NCM)]
+  if (length(ncm_order) == 0) ncm_order <- sort(unique(x$NCM))
+
+  tab5 <- x %>%
+    dplyr::select(scenario_key, NCM, delay_5) %>%
+    dplyr::mutate(NCM = factor(NCM, levels = ncm_order)) %>%
+    dplyr::arrange(scenario_key, NCM) %>%
+    tidyr::pivot_wider(names_from = NCM, values_from = delay_5)
+
+  tab10 <- x %>%
+    dplyr::select(scenario_key, NCM, delay_10) %>%
+    dplyr::mutate(NCM = factor(NCM, levels = ncm_order)) %>%
+    dplyr::arrange(scenario_key, NCM) %>%
+    tidyr::pivot_wider(names_from = NCM, values_from = delay_10)
+
+  for (cc in ncm_order) {
+    if (!cc %in% names(tab5))  tab5[[cc]]  <- NA_real_
+    if (!cc %in% names(tab10)) tab10[[cc]] <- NA_real_
+  }
+
+  final_tbl <- dplyr::left_join(tab5, tab10, by = "scenario_key", suffix = c("_5","_10")) %>%
+    dplyr::mutate(`Param., Probab. of FA` = scenario_label_fun(scenario_key)) %>%
+    dplyr::select(`Param., Probab. of FA`,
+                  tidyselect::all_of(paste0(ncm_order,"_5")),
+                  tidyselect::all_of(paste0(ncm_order,"_10")))
+
+  k <- length(ncm_order)
+  lbl5  <- if (knitr::is_latex_output()) "5\\%"  else "5%"
+  lbl10 <- if (knitr::is_latex_output()) "10\\%" else "10%"
+
+  kableExtra::kbl(
+    final_tbl, booktabs = TRUE,
+    align = c("l", rep("r", 2*k)),
+    col.names = c("Param.,\\ Probab. of FA", ncm_order, ncm_order),
+    caption = paste("Betting function:", bf_name)
+  ) %>%
+    kableExtra::add_header_above(c(" " = 1, setNames(k, lbl5), setNames(k, lbl10))) %>%
+    kableExtra::column_spec(1 + k + 1, border_left = TRUE) %>%
+    kableExtra::kable_styling(full_width = FALSE, bootstrap_options = c("striped","condensed"))
+}
+print_bf_contaminada("Constant BF")
+```
+
+
+
+## Funcion de apuesta mixta
+
+```{r}
+df_MBF_contam <- contaminated_summary %>% filter(Method %in% c("KNN Mixture BF + ICM (contaminado)", "LR Mixture BF + ICM (contaminado)", "MAD Mixture BF + ICM (contaminado)", "IQR Mixture BF + ICM (contaminado)")) 
+ggplot(df_MBF_contam, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: Mixture BF contaminada",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "right"
+  )
+
+```
+
+```{r}
+print_bf_contaminada("Mixture BF")
+```
+
+
+
+## KDE precomputada
+
+```{r}
+df_KDEF_contam <- contaminated_summary %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM (contaminado)", "LR Precomputed KDE BF + ICM (contaminado)", "MAD Precomputed KDE BF + ICM (contaminado)", "IQR Precomputed KDE BF + ICM (contaminado)"))
+ggplot(df_KDEF_contam, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: KDE PRECOMPUTED BF contaminada",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "right"
+  )
+```
+```{r}
+print_bf_contaminada("Precomputed KDE BF")
+```
+
+
+## Funcion apuesta histograma
+
+
+```{r}
+df_HIST_contam <- contaminated_summary %>% filter(Method %in% c("KNN Histogram BF + ICM (contaminado)","LR Histogram BF + ICM (contaminado)", "MAD Histogram BF + ICM (contaminado)", "IQR Histogram BF + ICM (contaminado)"))
+ggplot(df_HIST_contam, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_grid(rows = vars(theta_stream), cols = vars(mu1),
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x)
+             )) +
+  coord_cartesian(xlim = c(0,0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x     = expression(P[0](tau <= theta)),
+    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparación: HISTOGRAM BF contaminada",
+    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
+    color = "Método"
+  ) +
+  theme(
+    strip.text.x     = element_text(size = 12, face = "bold"),
+    strip.text.y     = element_text(size = 12, face = "bold"),
+    panel.spacing    = unit(0.6, "lines"),
+    axis.text        = element_text(size = 10),
+    axis.title       = element_text(size = 12, face = "bold"),
+    plot.title       = element_text(size = 14, face = "bold"),
+    legend.position  = "right"
+  )
+```
+
+```{r}
+print_bf_contaminada("Histogram BF")
+```
+
+## que pasas con los taus en datos contaminados?
+
+```{r}
+tb_contam <- tau_contaminated %>%
+  mutate(
+    scenario      = coalesce(as.character(scenario_key), as.character(scenario_id)),
+    bf            = na_if(trimws(as.character(bf)), ""),
+    ncm           = as.factor(ncm),
+    threshold     = parse_number(as.character(threshold)),
+    tau           = parse_number(as.character(tau)),
+    theta_stream  = parse_number(as.character(theta_stream))
+  ) %>%
+  filter(!is.na(bf), !is.na(scenario)) %>%   # <---- quita categoría NA
+  mutate(bf = fct_drop(as.factor(bf)),
+         ncm = fct_drop(ncm))
+
+# 2) θ por panel (sin NA)
+ref_theta_contam <- tb_contam %>%
+  group_by(scenario, bf) %>%
+  summarise(theta_stream = first(na.omit(theta_stream)), .groups = "drop")
+
+# 3) τ medio por umbral (solo detecciones)
+summ_mean_contam <- tb_contam %>%
+  group_by(scenario, bf, ncm, threshold) %>%
+  summarise(
+    det_n    = sum(!is.na(tau)),
+    det_rate = mean(!is.na(tau)),
+    tau_mean = if (det_n > 0) mean(tau, na.rm = TRUE) else NA_real_,
+    .groups  = "drop"
+  ) %>%
+  filter(!is.na(tau_mean)) %>%
+  mutate(bf = fct_drop(bf), ncm = fct_drop(ncm))
+```
+
+
+```{r}
+esc_levels <- tb_contam %>% distinct(scenario) %>% pull(scenario) %>% as.character()
+summ_mean_contam  <- summ_mean_contam %>% mutate(scenario = factor(as.character(scenario), levels = esc_levels))
+ref_theta_contam  <- ref_theta_contam %>%  mutate(scenario = factor(as.character(scenario), levels = esc_levels))
+
+# Función: una figura por BF con 6 escenarios facetados
+plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3) {
+  dmean <- df_mean %>% filter(bf == bf_sel)
+  dref  <- df_ref  %>% filter(bf == bf_sel)
+
+  ggplot(dmean, aes(x = threshold, y = tau_mean, color = ncm, group = ncm)) +
+    geom_hline(data = dref, aes(yintercept = theta_stream),
+               color = "red", linetype = "dashed", linewidth = 0.6) +
+    geom_line(aes(alpha = det_rate), linewidth = 0.9) +
+    geom_point(aes(alpha = det_rate), size = 1.6) +
+    scale_alpha(range = c(0.35, 1), guide = "none") +
+    facet_wrap(vars(scenario), ncol = ncol, scales = "free_y") +
+    labs(
+      title = paste("Convergencia de τ medio a θ con datos contaminados —", as.character(bf_sel)),
+      subtitle = "Línea roja: θ real. Transparencia ~ tasa de detección por umbral.",
+      x = "Umbral", y = "τ medio (solo detecciones)", color = "NCM"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(legend.position = "bottom")
+}
+```
+
+
+## Grafico de convergencia Funcion de apuesta cosntante con datos contaminados
+
+
+```{r}
+bf_demo <- levels(summ_mean_contam$bf)[1]
+plot_por_bf(summ_mean_contam, ref_theta_contam, bf_demo, ncol = 3)
+```
+
+
+## Grafico convergencia funcion de apuesta mixta con datos contaminados
+
+
+```{r}
+bf_demo <- levels(summ_mean_contam$bf)[3]
+plot_por_bf(summ_mean_contam, ref_theta_contam, bf_demo, ncol = 3)
+```
+
+## Grafico de convergencia funcion KDE precomputada con datos contaminados
+
+
+```{r}
+bf_demo <- levels(summ_mean_contam$bf)[4]
+plot_por_bf(summ_mean_contam, ref_theta_contam, bf_demo, ncol = 3)
+```
+
+
+## Grafico de convergencia funcion de apuesta histograma con datos contaminados
+
+
+```{r}
+bf_demo <- levels(summ_mean_contam$bf)[2]
+plot_por_bf(summ_mean_contam, ref_theta_contam, bf_demo, ncol = 3)
+```
+
+
+### Metodolgia
+Se contaminaron todas las series sintéticas —tanto el conjunto de **entrenamiento** como las observaciones **previas** y **posteriores** al cambio— con un **5 %** de datos atípicos en cada segmento, usando **scale-inflation** con \(\lambda = 6\).  
+Este esquema incrementa la dispersión del régimen base: si el segmento limpio sigue \(X \sim \mathcal{N}(\mu,\sigma)\), los outliers se generan como
+\(X_{\text{out}} \sim \mathcal{N}(\mu,\,\lambda\sigma)\) con \(\lambda = 6\), manteniendo la **misma media** pero con **seis veces** la desviación estándar (colas mucho más pesadas).
+
+Se evaluaron dos escenarios de punto de cambio, \(\theta \in \{100, 200\}\), y tres saltos en la media \(\mu_1 \in \{1, 1.5, 2\}\).  
+Para cada configuración se almacenaron: **retardo medio de detección**, **tasa de falsas alarmas** y los **tiempos de disparo** \((\tau)\) por umbral y método.
+
+
+### Conclusiones
+- En todos los escenarios y funciones de apuesta, las **medidas de no conformidad robustas** (MAD, IQR) muestran una **mejoría leve** frente a **KNN** bajo contaminación por varianza inflada.  
+- La **Likelihood Ratio (LR)** continúa siendo la de **mejor desempeño**: aun con outliers, suponer la forma paramétrica del modelo le permite capturar mejor el cambio que las alternativas totalmente no paramétricas.  
+- El **mayor peso** recae en la **función de apuesta**. En particular, la **KDE precomputada** mantiene un rendimiento **muy similar** al observado en datos limpios.
+- La **función de apuesta Mixture** evidencia ser la **más afectada** por los datos atípicos; su comportamiento es el que más cambia en comparación con el escenario sin outliers.
+- En cuanto a la **convergencia de la detección** (curvas umbral → tiempo de detección), **no se observan cambios cualitativos**: las dinámicas por escenario y por BF son análogas a las del caso sin outliers; la contaminación eleva la variabilidad pero no altera el patrón general.
+ 
+ 
+# Sensibilidad de KNN para diferentes valores de K
+
+
+```{r}
+KNN_sens_summary <- readRDS("../data/ncm_compare_KNN_MAD_IQR_LR_summary.rds")
+```
+
+##Mapa de calor retardeo medio para los diferentes valores de K
+
+```{r}
+ggplot(KNN_sens_summary,
+       aes(x = threshold, y = factor(K), fill = mean_delay)) +
+  geom_tile() +
+  facet_grid(bf ~ scenario_id) +
+  scale_fill_viridis_c(option = "magma", direction = -1) +
+  labs(x = "Umbral h", y = "K (KNN)",
+       fill = "Retardo medio",
+       title = "Sensibilidad de K (KNN) - Retardo medio por h y K") +
+  theme_minimal(base_size = 12)
+```
+
+Este mapa de calor muestra que, para distintos valores de \(K\), el **promedio del retardo medio** cambia en magnitud y patrón. La variación es más notoria con la **función de apuesta de histograma**, especialmente cuando el cambio es pequeño (salto en la media \(\mu = 1\)), donde se observa mayor variabilidad. En los demás escenarios el comportamiento luce más uniforme, salvo en los extremos \(K = 1\) y \(K = 200\), donde aparece un incremento del retardo medio.
+
+Para una comparación más clara, a continuación se presentan las siguientes gráficas.
+
+## Funcion de apuesta constante
+
+```{r}
+df_cmp <- KNN_sens_summary %>%
+  mutate(method_lbl = ifelse(ncm == "KNN", paste0("KNN K=", K), ncm))
+
+# Define niveles: primero no-KNN (en orden fijo), luego KNN con K ordenado
+other_levels <- intersect(c("MAD","IQR","LR"), unique(df_cmp$method_lbl))
+knn_levels   <- paste0("KNN K=", sort(unique(df_cmp$K[df_cmp$ncm=="KNN" & !is.na(df_cmp$K)])))
+lvl_order    <- c(other_levels, knn_levels)
+
+df_cmp <- df_cmp %>%
+  mutate(method_lbl = factor(method_lbl, levels = lvl_order))
+
+bf_objetivo <- "Constant BF"
+
+ggplot(
+  df_cmp %>% dplyr::filter(bf == bf_objetivo),
+  aes(x = p_false_alarm, y = log_delay,
+      color = method_lbl,            # <-- antes: Method
+      group = method_lbl)            # <-- asegura líneas separadas
+) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~ theta_stream + mu1, nrow = 2, ncol = 3,
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x),
+               .multi_line  = FALSE
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x = expression(P[0](tau <= theta)),
+    y = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = paste("Comparación por", bf_objetivo, "— KNN (varios K) vs MAD/IQR/LR"),
+    color = "Método"
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    panel.spacing = unit(0.6, "lines"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10, face = "bold"),
+    plot.title = element_text(size = 10, face = "bold"),
+    legend.position = "right"
+  )
+
+```
+
+```{r}
+df_cmp <- KNN_sens_summary %>%
+  mutate(method_lbl = ifelse(ncm == "KNN", paste0("KNN K=", K), ncm))
+
+# Define niveles: primero no-KNN (en orden fijo), luego KNN con K ordenado
+other_levels <- intersect(c("MAD","IQR","LR"), unique(df_cmp$method_lbl))
+knn_levels   <- paste0("KNN K=", sort(unique(df_cmp$K[df_cmp$ncm=="KNN" & !is.na(df_cmp$K)])))
+lvl_order    <- c(other_levels, knn_levels)
+
+df_cmp <- df_cmp %>%
+  mutate(method_lbl = factor(method_lbl, levels = lvl_order))
+
+bf_objetivo <- "Mixture BF"
+
+ggplot(
+  df_cmp %>% dplyr::filter(bf == bf_objetivo),
+  aes(x = p_false_alarm, y = log_delay,
+      color = method_lbl,            # <-- antes: Method
+      group = method_lbl)            # <-- asegura líneas separadas
+) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~ theta_stream + mu1, nrow = 2, ncol = 3,
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x),
+               .multi_line  = FALSE
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x = expression(P[0](tau <= theta)),
+    y = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = paste("Comparación por", bf_objetivo, "— KNN (varios K) vs MAD/IQR/LR"),
+    color = "Método"
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    panel.spacing = unit(0.6, "lines"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10, face = "bold"),
+    plot.title = element_text(size = 10, face = "bold"),
+    legend.position = "right"
+  )
+```
+
+
+```{r}
+df_cmp <- KNN_sens_summary %>%
+  mutate(method_lbl = ifelse(ncm == "KNN", paste0("KNN K=", K), ncm))
+
+# Define niveles: primero no-KNN (en orden fijo), luego KNN con K ordenado
+other_levels <- intersect(c("MAD","IQR","LR"), unique(df_cmp$method_lbl))
+knn_levels   <- paste0("KNN K=", sort(unique(df_cmp$K[df_cmp$ncm=="KNN" & !is.na(df_cmp$K)])))
+lvl_order    <- c(other_levels, knn_levels)
+
+df_cmp <- df_cmp %>%
+  mutate(method_lbl = factor(method_lbl, levels = lvl_order))
+
+bf_objetivo <- "Precomputed KDE BF"
+
+ggplot(
+  df_cmp %>% dplyr::filter(bf == bf_objetivo),
+  aes(x = p_false_alarm, y = log_delay,
+      color = method_lbl,            # <-- antes: Method
+      group = method_lbl)            # <-- asegura líneas separadas
+) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~ theta_stream + mu1, nrow = 2, ncol = 3,
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x),
+               .multi_line  = FALSE
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x = expression(P[0](tau <= theta)),
+    y = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = paste("Comparación por", bf_objetivo, "— KNN (varios K) vs MAD/IQR/LR"),
+    color = "Método"
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    panel.spacing = unit(0.6, "lines"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10, face = "bold"),
+    plot.title = element_text(size = 10, face = "bold"),
+    legend.position = "right"
+  )
+```
+
+
+
+
+```{r}
+df_cmp <- KNN_sens_summary %>%
+  mutate(method_lbl = ifelse(ncm == "KNN", paste0("KNN K=", K), ncm))
+
+# Define niveles: primero no-KNN (en orden fijo), luego KNN con K ordenado
+other_levels <- intersect(c("MAD","IQR","LR"), unique(df_cmp$method_lbl))
+knn_levels   <- paste0("KNN K=", sort(unique(df_cmp$K[df_cmp$ncm=="KNN" & !is.na(df_cmp$K)])))
+lvl_order    <- c(other_levels, knn_levels)
+
+df_cmp <- df_cmp %>%
+  mutate(method_lbl = factor(method_lbl, levels = lvl_order))
+
+bf_objetivo <- "Histogram BF"
+
+ggplot(
+  df_cmp %>% dplyr::filter(bf == bf_objetivo),
+  aes(x = p_false_alarm, y = log_delay,
+      color = method_lbl,            # <-- antes: Method
+      group = method_lbl)            # <-- asegura líneas separadas
+) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  facet_wrap(~ theta_stream + mu1, nrow = 2, ncol = 3,
+             labeller = labeller(
+               theta_stream = function(x) paste0("θ = ", x),
+               mu1          = function(x) paste0("μ₁ = ", x),
+               .multi_line  = FALSE
+             )) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    x = expression(P[0](tau <= theta)),
+    y = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = paste("Comparación por", bf_objetivo, "— KNN (varios K) vs MAD/IQR/LR"),
+    color = "Método"
+  ) +
+  theme(
+    strip.text = element_text(size = 10, face = "bold"),
+    panel.spacing = unit(0.6, "lines"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 10, face = "bold"),
+    plot.title = element_text(size = 10, face = "bold"),
+    legend.position = "right"
+  )
+```
+
+### Metodologia
+Se realizo una simulacion montecarlo bajo el mismo esquema de las presentadas anteriormente a;adiendo un barrido sobre diferntes valores del parametro k tomando valores en 1, 7, 25, 50, 100, 150, 200
+
+### Conclusion
+Las gráficas muestran que el nivel de las curvas depende fuertemente de \(K\). En consecuencia, \(K\) se vuelve un **hiperparámetro** que requiere una selección cuidadosa y aumenta la sensibilidad del método al ajuste elegido. Cuando se busca **reducir esa sensibilidad**, las **medidas de no conformidad** basadas en MAD o IQR que no requieren calibrar \(K\) y presentan desempeños comparables pueden ser una alternativa preferible para configurar la martingala.
+
+
+# Graficos de deteccion datos sinteticos y datos reales
+
+## Datos sinteticos
+
+```{r}
+
+```
+
+
+## Datos de baseball (datos de tidychangepoint)
+
+```{r}
+
+```
+
+
+## Datos de Caudales rios colombianos
+
+```{r}
+
+```
+
+

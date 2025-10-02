@@ -3,7 +3,7 @@ source("R/non_conformity_measures.R")
 source("R/icm_method.R")
 source("R/betting_functions.R")
 
-n <- 1000
+n <- 1400
 theta <- 500
 
 # Data frame base con tiempo
