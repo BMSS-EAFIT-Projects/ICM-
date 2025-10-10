@@ -408,7 +408,6 @@ multi_change <- readRDS("../data/multi_perchange.rds")
 ```
 
 ```{r}
-# df = tu tabla del screenshot
 df2 <- multi_summary %>%
   filter(!is.na(ncm), !is.na(bf), !is.na(Method), !is.na(scenario_group)) %>%
   mutate(
@@ -1099,21 +1098,262 @@ Las gráficas muestran que el nivel de las curvas depende fuertemente de \(K\). 
 ## Datos sinteticos
 
 ```{r}
+rec <- readRDS("../data/figura_resultado_sintetico_salto_mu_1.rds")
 
+sintetica_1 <- rec$df        # <- serie (t, y)
+vref         <- rec$vref      # <- líneas verticales
+# (opcional) rec$meta$cp; rec$meta$theta_stream; etc.
+
+# Asegura que 'ref' sea factor con los niveles esperados (por si se perdió)
+vref <- vref |>
+  dplyr::mutate(
+    ref = factor(ref, levels = c("θ verdadero","τ estimado (MAD)","τ estimado (PELT)","τ estimado (IQR)","τ estimado (KNN)"))
+  )
+
+ggplot(sintetica_1, aes(t, y)) +
+  geom_line(linewidth = 0.3, color = "grey7") +
+  geom_vline(
+    data = vref,
+    mapping = aes(xintercept = x, color = ref, linetype = ref),
+    linewidth = 1
+  ) +
+  scale_color_manual(
+    name   = "Referencia",
+    values = c(
+      "θ verdadero"        = "#D55E00",
+      "τ estimado (MAD)"   = "#0072B2",
+      "τ estimado (PELT)"  = "#009E73",
+      "τ estimado (IQR)"   = "#CC79A7",
+      "τ estimado (KNN)"   = "red"
+    ),
+    breaks = levels(vref$ref)
+  ) +
+  scale_linetype_manual(
+    name   = "Referencia",
+    values = c(
+      "θ verdadero"        = "solid",
+      "τ estimado (MAD)"   = "solid",
+      "τ estimado (PELT)"  = "dashed",
+      "τ estimado (IQR)"   = "dashed",
+      "τ estimado (KNN)"   = "dashed"
+    ),
+    breaks = levels(vref$ref),
+    guide = "none"
+  ) +
+  guides(color = guide_legend(override.aes = list(linewidth = 1.5))) +
+  labs(title = "Serie con posible punto de cambio",
+       x = "Índice temporal", y = "Valor") +
+  coord_cartesian(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.margin      = margin(10, 20, 10, 10),
+    legend.position  = "right"
+  )
 ```
+## 
+
+```{r}
+rec <- readRDS("../data/salto_mu_MULTI_obj.rds")
+
+multi_up <- rec$df
+vref_multi_up <- rec$vref
+
+vref_multi_up <- vref_multi_up |>
+  dplyr::mutate(
+    ref = factor(ref, levels = c("θ verdadero","τ estimado (MAD)","τ estimado (PELT)","τ estimado (IQR)","τ estimado (KNN)"))
+  )
+
+ggplot(multi_up, aes(t, y)) +
+  geom_line(linewidth = 0.3, color = "grey7") +
+  geom_vline(
+    data = vref_multi_up,
+    mapping = aes(xintercept = x, color = ref, linetype = ref),
+    linewidth = 1
+  ) +
+  scale_color_manual(
+    name   = "Referencia",
+    values = c(
+      "θ verdadero"        = "#D55E00",
+      "τ estimado (MAD)"   = "#0072B2",
+      "τ estimado (PELT)"  = "#009E73",
+      "τ estimado (IQR)"   = "#CC79A7",
+      "τ estimado (KNN)"   = "red"
+    ),
+    breaks = levels(vref_multi_up$ref)
+  ) +
+  scale_linetype_manual(
+    name   = "Referencia",
+    values = c(
+      "θ verdadero"        = "solid",
+      "τ estimado (MAD)"   = "solid",
+      "τ estimado (PELT)"  = "dashed",
+      "τ estimado (IQR)"   = "dashed",
+      "τ estimado (KNN)"   = "dashed"
+    ),
+    breaks = levels(vref_multi_up$ref),
+    guide = "none"
+  ) +
+  guides(color = guide_legend(override.aes = list(linewidth = 1.5))) +
+  labs(title = "Serie con posible punto de cambio",
+       x = "Índice temporal", y = "Valor") +
+  coord_cartesian(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.margin      = margin(10, 20, 10, 10),
+    legend.position  = "right"
+  )
+```
+
+
+```{r}
+rec <- readRDS("../data/salto_mu_MULTIADAPT_obj.rds")
+
+multiadapt <- rec$df
+vref_multiadapt <- rec$vref
+
+vref_multiadapt <- vref_multiadapt |>
+  dplyr::mutate(
+    ref = factor(ref, levels = c("θ verdadero","τ estimado (MAD)","τ estimado (PELT)","τ estimado (IQR)","τ estimado (KNN)", "τ estimado (ICM multi)"))
+  )
+
+ggplot(multiadapt, aes(t, y)) +
+  geom_line(linewidth = 0.3, color = "grey7") +
+  geom_vline(
+    data = vref_multiadapt,
+    mapping = aes(xintercept = x, color = ref, linetype = ref),
+    linewidth = 1
+  ) +
+  scale_color_manual(
+    name   = "Referencia",
+    values = c(
+      "θ verdadero"        = "#D55E00",
+      "τ estimado (MAD)"   = "#0072B2",
+      "τ estimado (PELT)"  = "#009E73",
+      "τ estimado (IQR)"   = "#CC79A7",
+      "τ estimado (KNN)"   = "red",
+      "τ estimado (ICM multi)" = "yellow"
+    ),
+    breaks = levels(vref_multiadapt$ref)
+  ) +
+  scale_linetype_manual(
+    name   = "Referencia",
+    values = c(
+      "θ verdadero"        = "solid",
+      "τ estimado (MAD)"   = "solid",
+      "τ estimado (PELT)"  = "dashed",
+      "τ estimado (IQR)"   = "dashed",
+      "τ estimado (KNN)"   = "dashed",
+      "τ estimado (ICM multi)" = "dashed"
+    ),
+    breaks = levels(vref_multiadapt$ref),
+    guide = "none"
+  ) +
+  guides(color = guide_legend(override.aes = list(linewidth = 1.5))) +
+  labs(title = "Serie con múltiples puntos de cambio",
+       x = "Índice temporal", y = "Valor") +
+  coord_cartesian(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.margin      = margin(10, 20, 10, 10),
+    legend.position  = "right"
+  )
+```
+
 
 
 ## Datos de baseball (datos de tidychangepoint)
 
 ```{r}
+rec <- readRDS("../data/baseball_data_obj.rds")
 
+baseball_data <- rec$df
+vref_baseball <- rec$vref
+
+vref_baseball <- vref_baseball |>
+  dplyr::mutate(
+    ref = factor(ref, levels = c("θ verdadero","τ estimado (MAD)","τ estimado (PELT)","τ estimado (IQR)","τ estimado (KNN)"))
+  )
+
+ggplot(baseball_data, aes(year, y)) +
+  geom_line(linewidth = 0.3, color = "grey7") +
+  geom_vline(
+    data = vref_baseball,
+    mapping = aes(xintercept = x, color = ref, linetype = ref),
+    linewidth = 1
+  ) +
+  scale_color_manual(
+    name   = "Referencia",
+    values = c(
+      "θ verdadero"        = "#D55E00",
+      "τ estimado (MAD)"   = "#0072B2",
+      "τ estimado (PELT)"  = "#009E73",
+      "τ estimado (IQR)"   = "#CC79A7",
+      "τ estimado (KNN)"   = "red"
+    ),
+    breaks = levels(vref_baseball$ref)
+  ) +
+  scale_linetype_manual(
+    name   = "Referencia",
+    values = c(
+      "θ verdadero"        = "solid",
+      "τ estimado (MAD)"   = "solid",
+      "τ estimado (PELT)"  = "dashed",
+      "τ estimado (IQR)"   = "dashed",
+      "τ estimado (KNN)"   = "dashed"
+    ),
+    breaks = levels(vref_baseball$ref),
+    guide  = "none"
+  ) +
+  scale_x_continuous(breaks = pretty) +  # años "bonitos"
+  guides(color = guide_legend(override.aes = list(linewidth = 1.5))) +
+  labs(title = "HR rate diff: detección de cambio",
+       x = "Año", y = "Diferencia en tasa de HR") +
+  coord_cartesian(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    plot.margin      = margin(10, 20, 10, 10),
+    legend.position  = "right"
+  )
 ```
 
 
 ## Datos de Caudales rios colombianos
 
 ```{r}
+rec <- readRDS("../data/rio_anamichu_df_vref.rds")
 
+rio_animachu_data <- rec$df
+vref_rio_animachu <- rec$vref
+
+
+ggplot(rio_animachu_data, aes(t, y)) +
+  geom_line(linewidth = 0.35, color = "grey7") +
+  geom_vline(
+    data = vref_rio_animachu,
+    aes(xintercept = x, color = ref, linetype = ref),
+    linewidth = 0.7
+  ) +
+  scale_color_manual(values = c(
+    "τ estimado (ICM)"    = "red",
+    "τ estimado (Pettitt)" = "#D55E00"
+  )) +
+  scale_linetype_manual(values = c(
+    "τ estimado (ICM)"    = "dashed",
+    "τ estimado (Pettitt)" = "solid"
+  )) +
+  labs(
+    title = "Serie con puntos de cambio",
+    x = "Índice", y = "Valor"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.title = element_blank()
+  )
 ```
 
 
