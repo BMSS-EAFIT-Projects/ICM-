@@ -139,7 +139,7 @@ df_all_taus    <- dplyr::bind_rows(all_taus_tbl, .id = "scenario_key")
 
 saveRDS(df_all_methods, file = "data/prueba_contaminada.rds")
 saveRDS(df_all_taus,    file = "data/prueba_taus_contaminada.rds") 
-cat(" Simulación contaminada (sin oráculos / sin CBF) completada.\n")
+cat(" Simulación contaminada completada.\n")
 
 secs_total <- as.numeric(difftime(Sys.time(), t_total, units = "secs"))
 cat(sprintf("Tiempo total: %.1f s (%.1f min)\n", secs_total, secs_total/60))

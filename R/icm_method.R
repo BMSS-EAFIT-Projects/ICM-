@@ -233,32 +233,30 @@ ICM_multi <- function(training_set,
 
 
 ICM_multi_adaptive <- function(stream_data,
-                                        non_conformity_measure,
-                                        betting_function,
-                                        th = 1,
-                                        training_set = NULL,
-                                        training_size = NULL,
-                                        m_retrain = NULL,         # tamaño del training post-alarma
-                                        guard_band = 0,           # saltar G obs tras la alarma antes de re-entrenar
-                                        shuffle_training = TRUE,
-                                        params_bf = list(),
-                                        ...) {
+                               non_conformity_measure,
+                               betting_function,
+                               th = 1,
+                               training_set = NULL,
+                               training_size = NULL,
+                               m_retrain = NULL,       # tamaño del training post-alarma
+                               guard_band = 0,         # saltar G obs tras la alarma antes de re-entrenar
+                               shuffle_training = TRUE,
+                               params_bf = list(),
+                               ...) {
   n <- length(stream_data)
   
-  # --- Resolver entrenamiento inicial y offset global (para mapear a 'z') ---
+  # --- Resolver entrenamiento inicial y posición inicial en el stream ---
   if (!is.null(training_set)) {
     if (shuffle_training) training_set <- sample(training_set)
-    m0 <- length(training_set)
-    initial_offset <- m0           # global = stream + m0, ya que z = training(1:m0) + stream(m0+1:...)
-    pos <- 1L                      # cursor absoluto en el stream
+    m0  <- length(training_set)
+    pos <- 1L
   } else {
     if (is.null(training_size) || training_size <= 0)
       stop("Especifica training_size > 0 si no pasas un training_set.")
     m0 <- training_size
     if (m0 >= n) stop("training_size no puede ser >= length(stream_data).")
-    training_set   <- stream_data[1:m0]
+    training_set <- stream_data[1:m0]
     if (shuffle_training) training_set <- sample(training_set)
-    initial_offset <- 0L
     pos <- m0 + 1L
   }
   mR <- if (is.null(m_retrain)) m0 else m_retrain
@@ -267,11 +265,11 @@ ICM_multi_adaptive <- function(stream_data,
   all_Cn     <- rep(NA_real_, n)
   all_p_vals <- rep(NA_real_, n)
   
-  # --- Salidas de puntos de cambio y eventos (para auditar) ---
-  cp_stream <- integer(0)
+  # --- Salidas principales ---
+  change_points <- integer(0)
   events <- list()
   
-  # --- Estado del tramo actual (se reinicia tras cada alarma) ---
+  # --- Estado del tramo actual ---
   C_prev <- 0
   i_seg <- 0L
   alphas_seg <- numeric(0)
@@ -308,10 +306,10 @@ ICM_multi_adaptive <- function(stream_data,
     
     # 5) ¿Alarma?
     if (C_curr > th) {
-      alarm_pos <- pos                          # ÍNDICE EN EL STREAM (1..n)
-      cp_stream <- c(cp_stream, alarm_pos)
+      alarm_pos <- pos
+      change_points <- c(change_points, alarm_pos)
       
-      # Escribir tramo detectado en los buffers alineados
+      # Escribir tramo detectado en los buffers
       all_Cn[seg_start_pos:alarm_pos]     <- Cn_seg[1:i_seg]
       all_p_vals[seg_start_pos:alarm_pos] <- p_seg[1:i_seg]
       
@@ -330,8 +328,7 @@ ICM_multi_adaptive <- function(stream_data,
       
       # Registrar evento para auditoría
       events[[length(events) + 1L]] <- data.frame(
-        alarm_stream = alarm_pos,
-        alarm_global = initial_offset + alarm_pos,
+        alarm        = alarm_pos,
         seg_start    = seg_start_pos,
         train_start  = train_start,
         train_end    = train_end,
@@ -349,36 +346,28 @@ ICM_multi_adaptive <- function(stream_data,
       next
     }
     
-    # Si no hubo alarma en este paso, avanzar al siguiente punto del stream
+    # Continuar si no hubo alarma
     pos <- pos + 1L
   }
   
-  # Volcar lo que haya quedado del último tramo sin alarma
   if (i_seg > 0L) {
     end_pos <- min(n, seg_start_pos + i_seg - 1L)
     all_Cn[seg_start_pos:end_pos]     <- Cn_seg[1:(end_pos - seg_start_pos + 1L)]
     all_p_vals[seg_start_pos:end_pos] <- p_seg[1:(end_pos - seg_start_pos + 1L)]
   }
   
-  # Tabla de eventos y chequeo del offset (auditoría de indexación)
-  ev <- if (length(events)) do.call(rbind, events) else
-    data.frame(alarm_stream=integer(), alarm_global=integer(),
-               seg_start=integer(), train_start=integer(),
-               train_end=integer(), next_start=integer())
-  if (nrow(ev) > 0L) {
-    off <- unique(ev$alarm_global - ev$alarm_stream)
-    # Si diste training_set inicial, el offset debe ser m0:
-    if (!is.null(training_set) || initial_offset > 0L) {
-      stopifnot(length(off) == 1L)
-    }
+  ev <- if (length(events)) {
+    do.call(rbind, events)
+  } else {
+    data.frame(alarm=integer(), seg_start=integer(),
+               train_start=integer(), train_end=integer(),
+               next_start=integer())
   }
   
   list(
-    Cn_aligned           = all_Cn,
-    p_vals_aligned       = all_p_vals,
-    change_points_stream = cp_stream,
-    change_points_global = initial_offset + cp_stream,
-    events               = ev,
-    offset               = initial_offset
+    Cn_aligned     = all_Cn,
+    p_vals_aligned = all_p_vals,
+    change_points  = change_points,
+    events         = ev
   )
 }

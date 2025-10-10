@@ -13,10 +13,8 @@ pvals_from_alphas <- function(alphas) {
 `%||%` <- function(a,b) if (is.null(a)) b else a
 
 alphas_from_ncm <- function(stream, training_set, ncm_fun, k = NULL,
-                            ..., shuffle_training = FALSE,
-                            knn_stat = c("kth","mean")) {
+                            ..., shuffle_training = FALSE) {
   stopifnot(length(training_set) > 0)
-  knn_stat <- match.arg(knn_stat)
   stream <- as.numeric(stream)
   training_set <- as.numeric(training_set)
   if (shuffle_training && length(training_set) > 1L) {
@@ -33,13 +31,7 @@ alphas_from_ncm <- function(stream, training_set, ncm_fun, k = NULL,
     Xte <- matrix(stream,       ncol = 1L)
     nn  <- FNN::get.knnx(Xtr, Xte, k = k)$nn.dist  # n x k
     
-    if (knn_stat == "kth") {
-      # Si tu NCM_KNN usa el k-ésimo vecino:
-      return(nn[, k])
-    } else {
-      # Si tu NCM_KNN usa promedio de k distancias:
-      return(rowMeans(nn))
-    }
+    return(rowMeans(nn))
   }
   
   # --- Caso 2: MAD (vectorizado) --------------------------------------
