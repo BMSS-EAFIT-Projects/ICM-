@@ -50,7 +50,7 @@ La **tabla** que acompaña a las gráficas resume, por **escenario**, el **retar
 
 ## Funcion de apuesta constante
 ```{r CBFchart, echo=FALSE}
-df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle", "IQR Constant BF + ICM"))
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM", "IQR Constant BF + ICM"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -134,7 +134,7 @@ print_bf("Constant BF")
 
 ## Funcion de apuesta mixta
 ```{r}
-df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle", "IQR Mixture BF + ICM"))
+df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM", "IQR Mixture BF + ICM"))
 ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -170,7 +170,7 @@ print_bf("Mixture BF")
 
 ## Funcion de apuesta con KDE precomputada
 ```{r}
-df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "IQR Precomputed KDE BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle"))
+df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "IQR Precomputed KDE BF + ICM"))
 ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -205,7 +205,7 @@ print_bf("Precomputed KDE BF")
 
 ### Funcion de apuesta con histograma
 ```{r}
-df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM", "IQR Histogram BF + ICM", "Posterior Oracle", "CUSUM Oracle", "S-R Oracle"))
+df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM", "IQR Histogram BF + ICM"))
 ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -440,7 +440,7 @@ ggplot(sum_long,
   facet_grid(metric + scenario_group ~ bf, scales = "free_y") +
   scale_linetype_manual(values = c("ICM-multi"="solid","ICM-adaptive"="longdash")) +
   scale_shape_manual(values = c("ICM-multi"=16, "ICM-adaptive"=17)) + # círculo vs triángulo
-  labs(x="Umbral (h)", y="Recall", color="NCM", linetype="Modo", shape="Modo") +
+  labs(x="Umbral (h)", y="Precision", color="NCM", linetype="Modo", shape="Modo") +
   theme_bw() + theme(panel.grid.minor = element_blank())
 ```
 
@@ -1097,6 +1097,7 @@ Las gráficas muestran que el nivel de las curvas depende fuertemente de \(K\). 
 
 ## Datos sinteticos
 
+### Unico punto de cambio
 ```{r}
 rec <- readRDS("../data/figura_resultado_sintetico_salto_mu_1.rds")
 
@@ -1151,8 +1152,10 @@ ggplot(sintetica_1, aes(t, y)) +
     legend.position  = "right"
   )
 ```
-## 
 
+
+
+### Dos putnos de cambio en 500 y 1000 cambios de 0 a 1 y de 1 a 2
 ```{r}
 rec <- readRDS("../data/salto_mu_MULTI_obj.rds")
 
@@ -1206,7 +1209,7 @@ ggplot(multi_up, aes(t, y)) +
   )
 ```
 
-
+### Dos putnos de cambio en 500 y 1000 cambios de 1 a 0 y de 0 a 1
 ```{r}
 rec <- readRDS("../data/salto_mu_MULTIADAPT_obj.rds")
 
@@ -1263,9 +1266,9 @@ ggplot(multiadapt, aes(t, y)) +
 ```
 
 
+## Datos reales
 
-## Datos de baseball (datos de tidychangepoint)
-
+### Datos de baseball (datos de tidychangepoint)
 ```{r}
 rec <- readRDS("../data/baseball_data_obj.rds")
 
@@ -1321,39 +1324,68 @@ ggplot(baseball_data, aes(year, y)) +
 ```
 
 
-## Datos de Caudales rios colombianos
+### Datos de Caudales rios colombianos
 
+#### RIO ANAMICHU
 ```{r}
-rec <- readRDS("../data/rio_anamichu_df_vref.rds")
+obj_rioanamichu <- readRDS("../data/icm_regimes_rioanamichu.rds")
 
-rio_animachu_data <- rec$df
-vref_rio_animachu <- rec$vref
+df        <- obj_rioanamichu$df
+seg_mean  <- obj_rioanamichu$segments$mean
+reg_stats <- obj_rioanamichu$stats
 
+mean_glob <- obj_rioanamichu$globals$mean
 
-ggplot(rio_animachu_data, aes(t, y)) +
-  geom_line(linewidth = 0.35, color = "grey7") +
-  geom_vline(
-    data = vref_rio_animachu,
-    aes(xintercept = x, color = ref, linetype = ref),
-    linewidth = 0.7
+ggplot(df, aes(t, y)) +
+  geom_line(linewidth = 0.35, color = "grey70") +
+  geom_segment(
+    data = seg_mean,
+    aes(x = x, xend = xend, y = y, yend = yend),
+    linewidth = 0.8, color = "steelblue", inherit.aes = FALSE
   ) +
-  scale_color_manual(values = c(
-    "τ estimado (ICM)"    = "red",
-    "τ estimado (Pettitt)" = "#D55E00"
-  )) +
-  scale_linetype_manual(values = c(
-    "τ estimado (ICM)"    = "dashed",
-    "τ estimado (Pettitt)" = "solid"
-  )) +
+  geom_hline(
+    yintercept = mean_glob,   # o: unique(reg_stats$mean_glob)
+    linetype = "dotted", linewidth = 0.7, color = "black"
+  ) +
   labs(
-    title = "Serie con puntos de cambio",
-    x = "Índice", y = "Valor"
+    title = obj_rioanamichu$meta$title_mean,
+    x = "Fecha",
+    y = obj_rioanamichu$meta$y_label
   ) +
   theme_minimal(base_size = 12) +
-  theme(
-    panel.grid.minor = element_blank(),
-    legend.title = element_blank()
-  )
+  theme(panel.grid.minor = element_blank())
+```
+
+
+
+#### RIO RIONEGRO
+```{r}
+obj_riorionegro <- readRDS("../data/icm_regimes_riorionegro.rds")
+
+df        <- obj_riorionegro$df
+seg_mean  <- obj_riorionegro$segments$mean
+reg_stats <- obj_riorionegro$stats
+
+mean_glob <- obj_riorionegro$globals$mean
+
+ggplot(df, aes(t, y)) +
+  geom_line(linewidth = 0.35, color = "grey70") +
+  geom_segment(
+    data = seg_mean,
+    aes(x = x, xend = xend, y = y, yend = yend),
+    linewidth = 0.8, color = "steelblue", inherit.aes = FALSE
+  ) +
+  geom_hline(
+    yintercept = mean_glob,   # o: unique(reg_stats$mean_glob)
+    linetype = "dotted", linewidth = 0.7, color = "black"
+  ) +
+  labs(
+    title = obj_riorionegro$meta$title_mean,
+    x = "Fecha",
+    y = obj_riorionegro$meta$y_label
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank())
 ```
 
 
