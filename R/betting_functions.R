@@ -13,13 +13,66 @@ Constant_BF <- function(p_values, new_p, i, ...) {
 
 #Mixture BF
 #refer to this article "Inductive conforma martingales for change point detection".
-
-Mixture_BF <- function(p_values, new_p, i, ...) {
-  integrand <- function(epsilon) {
-    epsilon * new_p^(epsilon - 1)
+Mixture_BF <- function(p_values, new_p, i, eps = 1e-12, ...) {
+  p  <- as.numeric(new_p)
+  p  <- pmin(1 - eps, pmax(eps, p))
+  lp <- log1p(p - 1)
+  
+  if (abs(lp) < 1e-12) {
+    return(0.5 + lp/12 + (lp*lp)/48)
   }
-  result <- integrate(integrand, lower = 0, upper = 1)
-  return(result$value)
+  
+  num <- p * lp - expm1(lp)
+  den <- p * (lp * lp)
+  
+  val <- num / den
+  if (!is.finite(val) || val <= 0) val <- eps
+  val
+}
+
+#Kernel BF
+#refer to this article "Inductive conforma martingales for change point detection".
+Kernel_BF <- function(p_values, new_p, i, ...) {
+  dots <- list(...)
+  L           <- if (!is.null(dots$L))           as.integer(dots$L)           else 100L
+  n_grid      <- if (!is.null(dots$n_grid))      as.integer(dots$n_grid)      else 512L
+  bw_floor    <- if (!is.null(dots$bw_floor))    as.numeric(dots$bw_floor)    else 1e-3
+  min_history <- if (!is.null(dots$min_history)) as.integer(dots$min_history) else 2L
+  
+  p_hist <- as.numeric(p_values)
+  m <- length(p_hist)
+  
+  if (m < min_history) return(1.0)
+  
+  if (m > L) p_hist <- p_hist[(m - L + 1L):m]
+  
+  h0 <- stats::bw.nrd0(p_hist)
+  if (!is.finite(h0) || h0 <= 0) h0 <- bw_floor
+  bw <- max(h0, bw_floor)
+  
+  ext <- c(-p_hist, p_hist, 2 - p_hist)
+  
+  dens <- try(stats::density(x = ext, kernel = "gaussian", bw = bw,
+                             n = n_grid, from = -0.25, to = 1.25),
+              silent = TRUE)
+  if (inherits(dens, "try-error")) return(1.0)
+  
+  in01 <- dens$x >= 0 & dens$x <= 1
+  x01  <- dens$x[in01]; y01 <- dens$y[in01]
+  
+  delta <- x01[2] - x01[1]
+  area  <- sum(y01) * delta
+  if (is.finite(area) && area > 0) {
+    y01 <- y01 / area
+  } else {
+    y01 <- rep(1, length(x01))
+    y01 <- y01 / (sum(y01) * delta)
+  }
+  
+  p <- min(1, max(0, as.numeric(new_p)))
+  g <- approx(x01, y01, xout = p, rule = 2)$y
+  if (!is.finite(g) || g <= 0) g <- 1e-12
+  g
 }
 
 #KDE BF

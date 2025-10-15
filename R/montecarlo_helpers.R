@@ -44,23 +44,24 @@ alphas_from_ncm <- function(stream, training_set, ncm_fun, k = NULL,
   
   # --- Caso 3: LR/LNR (vectorizado) -----------------------------------
   if (identical(ncm_fun, Non_conformity_LNR)) {
-    dots <- list(...)
-    mu_r <- dots$mu_r %||% 0
-    mu0  <- mean(training_set)
-    sd0  <- stats::sd(training_set); sd0 <- if (sd0 > 0) sd0 else .Machine$double.eps
-    z    <- (stream - mu0 - mu_r) / sd0
-    return(abs(z))  # ajusta si tu NCM difiere (e.g., z^2)
-  }
+    dots  <- list(...)
+    mu_r  <- dots$mu_r %||% 1
+    mu0   <- mean(training_set)
     
-  # --- Caso 4: IQR (NUEVO, vectorizado) --------------------------------
+    num <- dnorm(stream, mean = mu_r, sd = sqrt(2))
+    den <- dnorm(stream, mean = mu0, sd = 1)
+    return(num / den)
+  }
+  
+  # --- Caso 4: IQR (Vectorizado) --------------------------------
   if (identical(ncm_fun, Non_conformity_IQR)) {
     dots <- list(...)
     probs <- dots$probs %||% c(0.25, 0.50, 0.75)
-    qtype <- dots$type  %||% 8L          # usas type = 8; lo respetamos
-    c_iqr <- dots$c_iqr %||% 1.0         # si quisieras “normalizar” a sd, usa c_iqr = 1.349
+    qtype <- dots$type  %||% 8L
+    c_iqr <- dots$c_iqr %||% 1.349        
     qs    <- as.numeric(stats::quantile(training_set, probs = probs, type = qtype, names = FALSE))
     med   <- qs[2]
-    width <- max(qs[3] - qs[1], 1e-12)   # evita división por 0
+    width <- max(qs[3] - qs[1], 1e-12)
     return(abs(stream - med) / (width * c_iqr))
   }
   
@@ -134,12 +135,15 @@ first_cross_indices_linear <- function(path, h_vals) {
 make_stream_mean_shifts <- function(n_stream, theta_vec, mu_levels, sd = 1) {
   stopifnot(length(mu_levels) == length(theta_vec) + 1)
   if (length(theta_vec)) theta_vec <- sort(unique(as.integer(theta_vec)))
+  
   seg_starts <- c(1L, theta_vec)
   seg_ends   <- c(if (length(theta_vec)) theta_vec - 1L else integer(0), n_stream)
-  z <- numeric(0)
+  
+  z <- numeric(n_stream)
+  off <- 1L
   for (j in seq_along(mu_levels)) {
-    len_j <- seg_ends[j] - seg_starts[j] + 1L
-    if (len_j > 0) z <- c(z, rnorm(len_j, mean = mu_levels[j], sd = sd))
+    a <- seg_starts[j]; b <- seg_ends[j]
+    if (b >= a) z[a:b] <- rnorm(b - a + 1L, mean = mu_levels[j], sd = sd)
   }
   list(stream = z, true_changes = as.integer(theta_vec))
 }
@@ -336,12 +340,14 @@ match_alarms_to_changes_multi <- function(
     # apostar y acumular log-martingala truncada a 0
     g_i <- bf_eval(if (i == 1L) numeric(0) else p_seg[1:(i-1L)], p_i, i)
     if (!is.finite(g_i) || g_i <= 0) {
-      # si la BF devuelve algo no válido, corta y reporta
-      stop(sprintf("Betting function devolvió valor no positivo/finito en i=%d (g_i=%s)",
-                   i, as.character(g_i)))
+      bf_name  <- if (!is.null(params_bf$bf_name)) params_bf$bf_name else "bet_fun"
+      ncm_name <- if (!is.null(params_bf$ncm_name)) params_bf$ncm_name else "ncm"
+      rng <- if (i > 1L) paste0("[", sprintf("%.6g", range(p_seg[1:(i-1L)], na.rm = TRUE)), "]") else "[]"
+      stop(sprintf("g_i<=0 o no finito en i=%d (g_i=%s). BF='%s', NCM='%s', new_p=%.8g, len_hist=%d, range_hist=%s",
+                   i, as.character(g_i), bf_name, ncm_name, p_i, i-1L, rng), call. = FALSE)
     }
     C_curr <- max(0, C_prev + log(g_i))
-    if (C_curr > th) return(i)
+    if (C_curr >= th) return(i)
     C_prev <- C_curr
   }
   

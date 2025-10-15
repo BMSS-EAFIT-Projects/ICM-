@@ -7,8 +7,9 @@ log_marginal_likelihood <- function(z) {
   n  <- length(z)
   s  <- sum(z)
   s2 <- sum(z^2)
-  -0.5*(n-1)*log(2*pi) - 0.5*log(n+1) - 0.5*s2 + 0.5*(s^2)/(n+1)
+  -0.5*n*log(2*pi) - 0.5*log(n+1) - 0.5*s2 + 0.5*(s^2)/(n+1)
 }
+
 
 #likelihod marginal with cp
 .make_llcp_vec <- function(z, n) {
