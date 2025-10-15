@@ -38,7 +38,7 @@ CONTAM_CFG <- list(
 theta_vals <- c(100, 200)
 mu1_vals   <- c(1, 1.5, 2)
 h_vals     <- seq(1, 9, 0.5)
-n_sim      <- 1000
+n_sim      <- 5000
 m          <- 200
 k_par      <- 7
 

@@ -27,7 +27,7 @@ n_sim      <- 1000
 
 # Longitud de entrenamiento y stream
 m          <- 200
-n_stream   <- 1000
+n_stream   <- 5000
 
 # *** Barrido de K para KNN ***
 K_grid     <- c(1, 7, 25, 50, 100, 150, 200)

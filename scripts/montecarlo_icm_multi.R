@@ -26,40 +26,25 @@ make_ncm_LR <- function(mu_shift) {
 # Escenarios multi: vector de cambios y niveles por tramo
 scenarios_multi <- tribble(
   ~scenario_id,            ~theta_vec,          ~mu_levels,
-  "S1: 2 changes up/down", c(300, 700),         c(0, 1.5, 0),
-  "S2: 3 changes up-up",   c(200, 600, 1000),    c(0, 1.0, 2.0, 3.0)
+  "S1: 2 changes up/down", c(500, 1300),         c(0, 1.5, 0),
+  "S2: 3 changes up-up",   c(300, 1000, 1700),    c(0, 1.0, 2.0, 3.0)
 )
 
 # Umbrales y simulaciones
 h_vals   <- seq(1, 6, 0.5)
-n_sim    <- 1000
+n_sim    <- 2000
 m        <- 200
-n_stream <- 1500
+n_stream <- 2000
 k_par    <- 7
 
 # Ventana de detección (elige una de dos modalidades)
 window_mode <- "frac"    # "abs" = ventana en puntos; "frac" = fracción del segmento
 window_abs  <- Inf
-window_frac <- 0.3     
+window_frac <- 1     
 
 # Reentrenos (solo para ICM_multi_adaptive)
 m_retrain  <- m
 guard_band <- 20
-
-# --- 4) Tablas NCM y BF ------------------------------------------------------
-ncm_tbl <- tibble(
-  ncm_fun  = list(Non_conformity_KNN, make_ncm_LR(1.5), Non_conformity_MAD, Non_conformity_IQR),
-  ncm_lbl  = c("KNN", "LR", "MAD", "IQR"),
-  needs_k  = c(TRUE,  FALSE, FALSE, FALSE)
-)
-
-bet_tbl <- tibble(
-  bet_fun   = list(Constant_BF, Mixture_BF, kde_bf_fixed, histogram_betting_function),
-  bet_lbl   = c("Constant BF", "Mixture BF", "Precomputed KDE BF", "Histogram BF"),
-  params_bf = list(
-    list(), list(), list(), list(num_bins = 2)
-  )
-)
 
 # --- 5) Bucle principal: NCM × BF × Método × Escenario -----------------------
 t_total <- Sys.time()
@@ -70,8 +55,36 @@ all_alarms     <- list()
 for (s in seq_len(nrow(scenarios_multi))) {
   sc <- scenarios_multi[s,]
   
+  mu_levels_sc <- sc$mu_levels[[1]]
+  jumps <- abs(diff(mu_levels_sc))
+  delta_sc <- if (length(jumps)) median(jumps) else 1.0
+  
+  # --- NCMs: usa LR con Δ del escenario ------------------------------
+  ncm_tbl <- tibble(
+    ncm_fun  = list(
+      Non_conformity_KNN,
+      make_ncm_LR(delta_sc),
+      Non_conformity_MAD,
+      Non_conformity_IQR
+    ),
+    ncm_lbl  = c("KNN", "LR", "MAD", "IQR"),
+    needs_k  = c(TRUE, FALSE, FALSE, FALSE)
+  )
+  
+  # --- BF (puede quedarse igual) -------------------------------------
+  bet_tbl <- tibble(
+    bet_fun   = list(Constant_BF, Mixture_BF, kde_bf_fixed, histogram_betting_function),
+    bet_lbl   = c("Constant BF", "Mixture BF", "Precomputed KDE BF", "Histogram BF"),
+    params_bf = list(list(), list(), list(), list(num_bins = 2))
+  )
+  
+  
+  
+  
   icm_multi_res <- expand_grid(ncm_tbl, bet_tbl) |>
     pmap(function(ncm_fun, ncm_lbl, needs_k, bet_fun, bet_lbl, params_bf) {
+      params_bf$bf_name  <- bet_lbl
+      params_bf$ncm_name <- ncm_lbl
       k_val <- if (needs_k) k_par else NULL
       
       # Método A: ICM_multi (sin reentrenos)
@@ -157,7 +170,7 @@ df_multi_alarms    <- bind_rows(all_alarms,    .id = "scenario_group")
 # --- 6) Guardar resultados ----------------------------------------------------
 saveRDS(df_multi_summary,   file = "data/multi_summary.rds")
 saveRDS(df_multi_perchange, file = "data/multi_perchange.rds")
-saveRDS(df_multi_alarms,    file = "data/multi_alarms.rds")
+saveRDS(df_multi_alarms,    file = "data/multi_alarms.rds.rds")
 
 cat("Archivos guardados en data/: multi_summary.rds, multi_perchange.rds, multi_alarms.rds\n")
 
