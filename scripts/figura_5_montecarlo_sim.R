@@ -87,27 +87,8 @@ for (theta_s in theta_vals) {
           mutate(Method = paste(ncm_lbl, bet_lbl, "+ ICM"),
                  ncm = ncm_lbl, bf = bet_lbl)
         
-        # ---- Método ICM Cautious
-        out_icm_cbf <- montecarlo_ICM_CBF(
-          n_sim        = n_sim,
-          h_vals       = h_vals,
-          theta_stream = theta_s,
-          mu1          = mu1_s,
-          m            = m,
-          ncm_fun      = ncm_fun,
-          bet_fun      = bet_fun,
-          k            = k_val,
-          params_bf    = params_bf,
-          n_stream     = 1000
-        )
-        sum_cbf <- out_icm_cbf$summary |>
-          mutate(Method = paste(ncm_lbl, bet_lbl, "+ ICM CBF"))
-        tau_cbf <- out_icm_cbf$taus |>
-          mutate(Method = paste(ncm_lbl, bet_lbl, "+ ICM CBF"),
-                 ncm = ncm_lbl, bf = bet_lbl)
-        
-        list(summary = bind_rows(sum_icm, sum_cbf),
-             taus    = bind_rows(tau_icm,  tau_cbf))
+        list(summary = sum_icm,
+             taus    = tau_icm)
       })
     
     icm_res_summary <- bind_rows(purrr::map(icm_res, "summary"))
@@ -181,8 +162,8 @@ for (theta_s in theta_vals) {
 df_all_methods <- bind_rows(all_results,  .id = "scenario_key")
 df_all_taus    <- bind_rows(all_taus_tbl, .id = "scenario_key")
 
-saveRDS(df_all_methods, file = "data/prueba_modhist.rds")
-saveRDS(df_all_taus,    file = "data/prueba_fast_taus_modhist.rds") 
+#saveRDS(df_all_methods, file = "data/prueba_modhist.rds")
+#saveRDS(df_all_taus,    file = "data/prueba_fast_taus_modhist.rds") 
 cat(" Simulación con KNN y LR (parametrizado) completada.\n")
 
 secs_total <- as.numeric(difftime(Sys.time(), t_total, units = "secs"))

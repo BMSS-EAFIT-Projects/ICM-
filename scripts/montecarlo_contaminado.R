@@ -38,7 +38,7 @@ CONTAM_CFG <- list(
 theta_vals <- c(100, 200)
 mu1_vals   <- c(1, 1.5, 2)
 h_vals     <- seq(1, 9, 0.5)
-n_sim      <- 1000
+n_sim      <- 5000
 m          <- 200
 k_par      <- 7
 
@@ -139,7 +139,7 @@ df_all_taus    <- dplyr::bind_rows(all_taus_tbl, .id = "scenario_key")
 
 saveRDS(df_all_methods, file = "data/prueba_contaminada.rds")
 saveRDS(df_all_taus,    file = "data/prueba_taus_contaminada.rds") 
-cat(" Simulación contaminada (sin oráculos / sin CBF) completada.\n")
+cat(" Simulación contaminada completada.\n")
 
 secs_total <- as.numeric(difftime(Sys.time(), t_total, units = "secs"))
 cat(sprintf("Tiempo total: %.1f s (%.1f min)\n", secs_total, secs_total/60))

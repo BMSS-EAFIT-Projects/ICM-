@@ -63,7 +63,6 @@ df_f <- df %>%
   filter(NCM %in% allowed_ncm,
          BF  %in% allowed_bf,
          !str_detect(Method_up, "ORACLE"),
-         !str_detect(Method_up, "\\bCBF\\b"),
          !str_detect(toupper(BF %||% ""), "\\bCBF\\b"))
 
 # --- Retardo a PFA objetivo (interp con fallback al más cercano) ---

@@ -6,20 +6,15 @@ source("R/betting_functions.R")
 set.seed(2025)
 m0          <- 200
 n_calib     <- 1000
-epsilon_cal <- 500
+theta_cal <- 500
 mu1_cal     <- 1
 k0          <- 7
 
 # 3) Generar training_set y calibration_data tal como en la Sección 2
 train_for_kde <- rnorm(m0, 0, 1)
-calib_stream  <- numeric(n_calib)
+calib_stream <- numeric(n_calib)
 for (i in seq_len(n_calib)) {
-  idx_global <- m0 + i
-  if (idx_global < epsilon_cal) {
-    calib_stream[i] <- rnorm(1, 0, 1)
-  } else {
-    calib_stream[i] <- rnorm(1, mu1_cal, 1)
-  }
+  if (i < theta_cal) calib_stream[i] <- rnorm(1, 0, 1) else calib_stream[i] <- rnorm(1, mu1_cal, 1)
 }
 
 # 4) Ajustar la KDE y guardarla
