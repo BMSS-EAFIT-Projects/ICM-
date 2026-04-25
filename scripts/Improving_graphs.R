@@ -1,0 +1,7 @@
+library(tidyr)
+library(dplyr)
+library(purrr)
+library(tibble)
+library(janitor)
+library(ggplot2)
+library(readxl)

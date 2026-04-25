@@ -270,10 +270,10 @@ montecarlo_ICM_MULTI <- function(
         stream_data            = gen$stream,
         non_conformity_measure = ncm_fun,
         betting_function       = bet_fun,
-        th                     = h,                # <-- ya NO es NULL
+        th                     = h,
         params_bf              = params_bf,
         k                      = k,
-        alphas_full            = alphas_full       # <-- reutilizamos
+        alphas_full            = alphas_full
       )
       
       eva <- match_alarms_to_changes_multi(

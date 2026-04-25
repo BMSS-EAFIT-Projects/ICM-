@@ -1103,15 +1103,26 @@ rec <- readRDS("../data/figura_resultado_sintetico_salto_mu_1.rds")
 
 sintetica_1 <- rec$df        # <- serie (t, y)
 vref         <- rec$vref      # <- líneas verticales
-# (opcional) rec$meta$cp; rec$meta$theta_stream; etc.
 
-# Asegura que 'ref' sea factor con los niveles esperados (por si se perdió)
+# Asegura que 'ref' sea factor con los niveles esperados
 vref <- vref |>
   dplyr::mutate(
     ref = factor(ref, levels = c("θ verdadero","τ estimado (MAD)","τ estimado (PELT)","τ estimado (IQR)","τ estimado (KNN)"))
   )
 
-ggplot(sintetica_1, aes(t, y)) +
+vref <- vref %>%
+  mutate(
+    ref = recode(ref,
+      "θ verdadero"        = "true θ",
+      "τ estimado (MAD)"    = "estimated τ (MAD)",
+      "τ estimado (PELT)"   = "estimated τ (PELT)",
+      "τ estimado (IQR)"    = "estimated τ (IQR)",
+      "τ estimado (KNN)"    = "estimated τ (KNN)"
+    )
+  )
+
+
+p <- ggplot(sintetica_1, aes(t, y)) +
   geom_line(linewidth = 0.3, color = "grey7") +
   geom_vline(
     data = vref,
@@ -1119,31 +1130,31 @@ ggplot(sintetica_1, aes(t, y)) +
     linewidth = 1
   ) +
   scale_color_manual(
-    name   = "Referencia",
+    name   = "Method",
     values = c(
-      "θ verdadero"        = "#D55E00",
-      "τ estimado (MAD)"   = "#0072B2",
-      "τ estimado (PELT)"  = "#009E73",
-      "τ estimado (IQR)"   = "#CC79A7",
-      "τ estimado (KNN)"   = "red"
+      "true θ"        = "#D55E00",
+      "estimated τ (MAD)"   = "#0072B2",
+      "estimated τ (PELT)"  = "#009E73",
+      "estimated τ (IQR)"   = "#CC79A7",
+      "estimated τ (KNN)"   = "red"
     ),
     breaks = levels(vref$ref)
   ) +
   scale_linetype_manual(
-    name   = "Referencia",
+    name   = "Method",
     values = c(
-      "θ verdadero"        = "solid",
-      "τ estimado (MAD)"   = "solid",
-      "τ estimado (PELT)"  = "dashed",
-      "τ estimado (IQR)"   = "dashed",
-      "τ estimado (KNN)"   = "dashed"
+      "true θ"        = "solid",
+      "estimated τ (MAD)"   = "solid",
+      "estimated τ (PELT)"  = "dashed",
+      "estimated τ (IQR)"   = "dashed",
+      "estimated τ (KNN)"   = "dashed"
     ),
     breaks = levels(vref$ref),
     guide = "none"
   ) +
   guides(color = guide_legend(override.aes = list(linewidth = 1.5))) +
-  labs(title = "Serie con posible punto de cambio",
-       x = "Índice temporal", y = "Valor") +
+  labs(title = "Synthetic  time series with change point at 300",
+       x = "Time index", y = "Value") +
   coord_cartesian(expand = FALSE) +
   theme_minimal(base_size = 12) +
   theme(
@@ -1151,6 +1162,8 @@ ggplot(sintetica_1, aes(t, y)) +
     plot.margin      = margin(10, 20, 10, 10),
     legend.position  = "right"
   )
+ggsave("synthethic_onecgp.png", plot = p,
+       width = 13.33, height = 7.5, units = "in", dpi = 150, bg = "white")
 ```
 
 
@@ -1167,7 +1180,20 @@ vref_multi_up <- vref_multi_up |>
     ref = factor(ref, levels = c("θ verdadero","τ estimado (MAD)","τ estimado (PELT)","τ estimado (IQR)","τ estimado (KNN)"))
   )
 
-ggplot(multi_up, aes(t, y)) +
+
+vref_multi_up <- vref_multi_up %>%
+  mutate(
+    ref = recode(ref,
+      "θ verdadero"        = "true θ",
+      "τ estimado (MAD)"    = "estimated τ (MAD)",
+      "τ estimado (PELT)"   = "estimated τ (PELT)",
+      "τ estimado (IQR)"    = "estimated τ (IQR)",
+      "τ estimado (KNN)"    = "estimated τ (KNN)"
+    )
+  )
+
+
+p <- ggplot(multi_up, aes(t, y)) +
   geom_line(linewidth = 0.3, color = "grey7") +
   geom_vline(
     data = vref_multi_up,
@@ -1175,31 +1201,31 @@ ggplot(multi_up, aes(t, y)) +
     linewidth = 1
   ) +
   scale_color_manual(
-    name   = "Referencia",
+    name   = "Method",
     values = c(
-      "θ verdadero"        = "#D55E00",
-      "τ estimado (MAD)"   = "#0072B2",
-      "τ estimado (PELT)"  = "#009E73",
-      "τ estimado (IQR)"   = "#CC79A7",
-      "τ estimado (KNN)"   = "red"
+      "true θ"        = "#D55E00",
+      "estimated τ (MAD)"   = "#0072B2",
+      "estimated τ (PELT)"  = "#009E73",
+      "estimated τ (IQR)"   = "#CC79A7",
+      "estimated τ (KNN)"   = "red"
     ),
     breaks = levels(vref_multi_up$ref)
   ) +
   scale_linetype_manual(
-    name   = "Referencia",
+    name   = "Method",
     values = c(
-      "θ verdadero"        = "solid",
-      "τ estimado (MAD)"   = "solid",
-      "τ estimado (PELT)"  = "dashed",
-      "τ estimado (IQR)"   = "dashed",
-      "τ estimado (KNN)"   = "dashed"
+      "true θ"        = "solid",
+      "estimated τ (MAD)"   = "solid",
+      "estimated τ (PELT)"  = "dashed",
+      "estimated τ (IQR)"   = "dashed",
+      "estimated τ (KNN)"   = "dashed"
     ),
     breaks = levels(vref_multi_up$ref),
     guide = "none"
   ) +
   guides(color = guide_legend(override.aes = list(linewidth = 1.5))) +
-  labs(title = "Serie con posible punto de cambio",
-       x = "Índice temporal", y = "Valor") +
+  labs(title = "Synthetic  time series with change points at 500 and 1000",
+       x = "Time index", y = "Value") +
   coord_cartesian(expand = FALSE) +
   theme_minimal(base_size = 12) +
   theme(
@@ -1207,6 +1233,8 @@ ggplot(multi_up, aes(t, y)) +
     plot.margin      = margin(10, 20, 10, 10),
     legend.position  = "right"
   )
+ggsave("synthethic_twocgp.png", plot = p,
+       width = 13.33, height = 7.5, units = "in", dpi = 150, bg = "white")
 ```
 
 ### Dos putnos de cambio en 500 y 1000 cambios de 1 a 0 y de 0 a 1
@@ -1221,7 +1249,20 @@ vref_multiadapt <- vref_multiadapt |>
     ref = factor(ref, levels = c("θ verdadero","τ estimado (MAD)","τ estimado (PELT)","τ estimado (IQR)","τ estimado (KNN)", "τ estimado (ICM multi)"))
   )
 
-ggplot(multiadapt, aes(t, y)) +
+vref_multiadapt <- vref_multiadapt %>%
+  mutate(
+    ref = recode(ref,
+      "θ verdadero"        = "true θ",
+      "τ estimado (MAD)"    = "estimated τ (MAD)",
+      "τ estimado (PELT)"   = "estimated τ (PELT)",
+      "τ estimado (IQR)"    = "estimated τ (IQR)",
+      "τ estimado (KNN)"    = "estimated τ (KNN)",
+      "τ estimado (ICM multi)" = "estimated τ (ICM multi)"
+    )
+  )
+
+
+p <- ggplot(multiadapt, aes(t, y)) +
   geom_line(linewidth = 0.3, color = "grey7") +
   geom_vline(
     data = vref_multiadapt,
@@ -1229,33 +1270,33 @@ ggplot(multiadapt, aes(t, y)) +
     linewidth = 1
   ) +
   scale_color_manual(
-    name   = "Referencia",
+    name   = "Method",
     values = c(
-      "θ verdadero"        = "#D55E00",
-      "τ estimado (MAD)"   = "#0072B2",
-      "τ estimado (PELT)"  = "#009E73",
-      "τ estimado (IQR)"   = "#CC79A7",
-      "τ estimado (KNN)"   = "red",
-      "τ estimado (ICM multi)" = "yellow"
+      "true θ"        = "#D55E00",
+      "estimated τ (MAD)"   = "#0072B2",
+      "estimated τ (PELT)"  = "#009E73",
+      "estimated τ (IQR)"   = "#CC79A7",
+      "estimated τ (KNN)"   = "red",
+      "estimated τ (ICM multi)" = "yellow"
     ),
     breaks = levels(vref_multiadapt$ref)
   ) +
   scale_linetype_manual(
-    name   = "Referencia",
+    name   = "Method",
     values = c(
-      "θ verdadero"        = "solid",
-      "τ estimado (MAD)"   = "solid",
-      "τ estimado (PELT)"  = "dashed",
-      "τ estimado (IQR)"   = "dashed",
-      "τ estimado (KNN)"   = "dashed",
-      "τ estimado (ICM multi)" = "dashed"
+      "true θ"        = "solid",
+      "estimated τ (MAD)"   = "solid",
+      "estimated τ (PELT)"  = "dashed",
+      "estimated τ (IQR)"   = "dashed",
+      "estimated τ (KNN)"   = "dashed",
+      "estimated τ (ICM multi)" = "dashed"
     ),
     breaks = levels(vref_multiadapt$ref),
     guide = "none"
   ) +
   guides(color = guide_legend(override.aes = list(linewidth = 1.5))) +
-  labs(title = "Serie con múltiples puntos de cambio",
-       x = "Índice temporal", y = "Valor") +
+  labs(title = "Synthetic  time series with change points at 500 and 1000",
+       x = "Time index", y = "Value") +
   coord_cartesian(expand = FALSE) +
   theme_minimal(base_size = 12) +
   theme(
@@ -1263,6 +1304,8 @@ ggplot(multiadapt, aes(t, y)) +
     plot.margin      = margin(10, 20, 10, 10),
     legend.position  = "right"
   )
+ggsave("synthethic_twocpupdn.png", plot = p,
+       width = 13.33, height = 7.5, units = "in", dpi = 150, bg = "white")
 ```
 
 
@@ -1280,6 +1323,19 @@ vref_baseball <- vref_baseball |>
     ref = factor(ref, levels = c("θ verdadero","τ estimado (MAD)","τ estimado (PELT)","τ estimado (IQR)","τ estimado (KNN)"))
   )
 
+vref_baseball <- vref_baseball %>%
+  mutate(
+    ref = recode(ref,
+      "θ verdadero"        = "true θ",
+      "τ estimado (MAD)"    = "estimated τ (MAD)",
+      "τ estimado (PELT)"   = "estimated τ (PELT)",
+      "τ estimado (IQR)"    = "estimated τ (IQR)",
+      "τ estimado (KNN)"    = "estimated τ (KNN)"
+    )
+  )
+
+
+
 ggplot(baseball_data, aes(year, y)) +
   geom_line(linewidth = 0.3, color = "grey7") +
   geom_vline(
@@ -1288,32 +1344,32 @@ ggplot(baseball_data, aes(year, y)) +
     linewidth = 1
   ) +
   scale_color_manual(
-    name   = "Referencia",
+    name   = "Method",
     values = c(
-      "θ verdadero"        = "#D55E00",
-      "τ estimado (MAD)"   = "#0072B2",
-      "τ estimado (PELT)"  = "#009E73",
-      "τ estimado (IQR)"   = "#CC79A7",
-      "τ estimado (KNN)"   = "red"
+      "true θ"        = "#D55E00",
+      "estimated τ (MAD)"   = "#0072B2",
+      "estimated τ (PELT)"  = "#009E73",
+      "estimated τ (IQR)"   = "#CC79A7",
+      "estimated τ (KNN)"   = "red"
     ),
     breaks = levels(vref_baseball$ref)
   ) +
   scale_linetype_manual(
-    name   = "Referencia",
+    name   = "Method",
     values = c(
-      "θ verdadero"        = "solid",
-      "τ estimado (MAD)"   = "solid",
-      "τ estimado (PELT)"  = "dashed",
-      "τ estimado (IQR)"   = "dashed",
-      "τ estimado (KNN)"   = "dashed"
+      "true θ"        = "solid",
+      "estimated τ (MAD)"   = "solid",
+      "estimated τ (PELT)"  = "dashed",
+      "estimated τ (IQR)"   = "dashed",
+      "estimated τ (KNN)"   = "dashed"
     ),
     breaks = levels(vref_baseball$ref),
     guide  = "none"
   ) +
   scale_x_continuous(breaks = pretty) +  # años "bonitos"
   guides(color = guide_legend(override.aes = list(linewidth = 1.5))) +
-  labs(title = "HR rate diff: detección de cambio",
-       x = "Año", y = "Diferencia en tasa de HR") +
+  labs(title = "Homerun rate differences",
+       x = "Year", y = "Difference in HR rate") +
   coord_cartesian(expand = FALSE) +
   theme_minimal(base_size = 12) +
   theme(
