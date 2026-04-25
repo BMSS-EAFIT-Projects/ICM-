@@ -340,7 +340,7 @@ df_all <- tibble::tibble(
 ) |>
   dplyr::filter(!is.na(year), !is.na(y))
 
-test_size <- 5L
+test_size <- 8L
 training_baseball <- df_all$y[1:(test_size - 1)]
 stream_baseball   <- df_all$y[(test_size):length(df_all$y)]
 year_stream       <- df_all$year[(test_size):length(df_all$year)]
@@ -353,20 +353,20 @@ paramsbf <- list(
 )
 
 
-res_baseball_MAD <- ICM(training_baseball, stream_baseball, Non_conformity_MAD, Kernel_BF, th=2, params_bf = paramsbf)
+res_baseball_MAD <- ICM(training_baseball, stream_baseball, Non_conformity_MAD, Mixture_BF, th=2.5)
 res_baseball_MAD$change_point
 
-res_baseball_IQR <- ICM(training_baseball, stream_baseball, Non_conformity_IQR, Kernel_BF, th=2,params_bf = paramsbf)
+res_baseball_IQR <- ICM(training_baseball, stream_baseball, Non_conformity_IQR, Mixture_BF, th=2.5)
 res_baseball_IQR$change_point
 
-res_baseball_KNN <- ICM(training_baseball, stream_baseball, Non_conformity_KNN, Kernel_BF, th=2,params_bf = paramsbf, k=3)
+res_baseball_KNN <- ICM(training_baseball, stream_baseball, Non_conformity_KNN, Mixture_BF, th=2.5, k=5)
 res_baseball_KNN$change_point
 
 res_baseball_PELT <- segment(stream_baseball, method = "pelt")
 
-cp_baseball_MAD <- res_baseball_MAD$change_point - 8
-cp_baseball_IQR <- res_baseball_IQR$change_point - 8
-cp_baseball_KNN <- res_baseball_KNN$change_point - 8
+cp_baseball_MAD <- res_baseball_MAD$change_point-7
+cp_baseball_IQR <- res_baseball_IQR$change_point-7
+cp_baseball_KNN <- res_baseball_KNN$change_point-7
 cp_baseball_PELT <- res_baseball_PELT$model$tau[2]
 cp_real <- which(year_stream == 1973)[1]
  
@@ -528,14 +528,20 @@ rio_anamichu_train <- tsd$stream[1:n_train]
 rio_anamichu_stream<- tsd$stream[(n_train + 1):n]
 
 
-res_rioanamichu <- ICM_multi_adaptive(rio_anamichu_stream, Non_conformity_MAD, Kernel_BF, th =5,
-                                      rio_anamichu_train, m_retrain = 400,guard_band = 100, params_bf =list(
-                                        L = 400,
-                                        n_grid = 512,
-                                        bw_floor = 0.02,
-                                        min_history = 50
-                                      ))
+#res_rioanamichu <- ICM_multi_adaptive(rio_anamichu_stream, Non_conformity_MAD, Kernel_BF, th =5,
+#                                      rio_anamichu_train, m_retrain = 400,guard_band = 100, params_bf =list(
+#                                        L = 400,
+#                                        n_grid = 512,
+#                                        bw_floor = 0.02,
+#                                        min_history = 50
+#                                      ))
+#res_rioanamichu$change_points
+
+res_rioanamichu <- ICM_multi_adaptive(rio_anamichu_stream, Non_conformity_MAD, Mixture_BF, th =3.5,
+                                      rio_anamichu_train, m_retrain = 400,guard_band = 50
+)
 res_rioanamichu$change_points
+
 
 res_pettitt_rioanimachu <- pettitt.test(tsd$stream)
 
@@ -906,3 +912,7 @@ obj_riorionegro <- list(
 
 
 saveRDS(obj_riorionegro, "data/icm_regimes_riorionegro.rds")
+
+
+
+

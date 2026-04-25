@@ -32,7 +32,7 @@ make_ncm_LR <- function(mu_shift) {
 theta_vals <- c(100, 200)
 mu1_vals   <- c(1, 1.5, 2)
 h_vals     <- seq(1, 9, 0.5)
-n_sim      <- 1000
+n_sim      <- 5000
 m          <- 200
 k_par      <- 7
 
@@ -162,8 +162,8 @@ for (theta_s in theta_vals) {
 df_all_methods <- bind_rows(all_results,  .id = "scenario_key")
 df_all_taus    <- bind_rows(all_taus_tbl, .id = "scenario_key")
 
-#saveRDS(df_all_methods, file = "data/prueba_modhist.rds")
-#saveRDS(df_all_taus,    file = "data/prueba_fast_taus_modhist.rds") 
+saveRDS(df_all_methods, file = "data/prueba_falsasalarmas.rds")
+saveRDS(df_all_taus,    file = "data/prueba_fast_taus_falsasalarmas.rds") 
 cat(" Simulación con KNN y LR (parametrizado) completada.\n")
 
 secs_total <- as.numeric(difftime(Sys.time(), t_total, units = "secs"))

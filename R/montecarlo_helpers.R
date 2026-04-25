@@ -507,11 +507,12 @@ contaminate <- function(x, rate, model, params, base_mu = 0, base_sd = 1){
   idx <- which(stats::runif(n) < rate)
   if (length(idx) == 0L) return(x)
   
-  delta  <- params$delta  %||% 6     # para "shift"
-  lambda <- params$lambda %||% 5     # para "scale"
+  delta  <- params$delta  %||% 6
+  lambda <- params$lambda %||% 5
   
   if (model == "shift") {
-    x[idx] <- stats::rnorm(length(idx), mean = base_mu + delta, sd = base_sd)
+    signs  <- sample(c(-1L, 1L), length(idx), replace = TRUE)
+    x[idx] <- stats::rnorm(length(idx), mean = base_mu + signs * delta, sd = base_sd)
   } else if (model == "scale") {
     x[idx] <- stats::rnorm(length(idx), mean = base_mu, sd = base_sd * lambda)
   } else {

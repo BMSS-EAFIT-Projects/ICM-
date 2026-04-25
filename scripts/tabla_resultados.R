@@ -4,7 +4,7 @@ library(readr)
 library(stringr)
 
 
-df <- readRDS("data/prueba_modhist.rds")
+df <- readRDS("data/prueba_falsasalarmas.rds")
 
 # Columnas esperadas: Method, scenario_key, p_false_alarm, mean_delay
 df <- df %>%

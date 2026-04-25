@@ -23,11 +23,11 @@ mu1_vals   <- c(1, 1.5, 2)
 h_vals     <- seq(1, 9, 0.5)
 
 # Nº simulaciones por combinación
-n_sim      <- 1000
+n_sim      <- 5000
 
 # Longitud de entrenamiento y stream
 m          <- 200
-n_stream   <- 5000
+n_stream   <- 1000
 
 # *** Barrido de K para KNN ***
 K_grid     <- c(1, 7, 25, 50, 100, 150, 200)

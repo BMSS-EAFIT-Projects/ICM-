@@ -1,9 +1,4 @@
 #Bnechmarking
-
-# 0) Cargar librerías y fuentes
-library(microbenchmark)
-library(dplyr)
-
 # 0) Cargar librerías y fuentes
 library(microbenchmark)
 library(dplyr)
@@ -11,14 +6,14 @@ library(dplyr)
 # Fuente de wrappers
 source("R/benchmark_wrappers.R")
 
-# 1) Cargar funciones KDE precomputadas (desde tus .rds)
+# 1) Cargar funciones KDE precomputadas
 kde_precomputed <- readRDS("data/kde_bf_fixed.rds")
 
 # 2) Generar streams_list por simulación
 # Parám. de simulación:
 training_set_size <- 200  # número de puntos de entrenamiento (burn-in)
 n_total          <- 1000 # longitud total de cada stream
-# Escenarios de cambio (ajusta según tus necesidades):
+# Escenarios de cambio:
 thetas <- c(100, 200)
 mu1s   <- c(1, 1.5, 2)
 

@@ -36,7 +36,7 @@ montecarlo_ICM <- function(n_sim        = 200,
     tau <- first_cross_indices_linear(S, h_vals)
     
     # (4) métricas por umbral
-    fa <- as.integer(!is.na(tau) & tau < theta_stream)
+    fa <- as.integer(!is.na(tau) & tau <= theta_stream)
     dl <- ifelse(is.na(tau) | tau < theta_stream, NA_real_, tau - theta_stream)
     
     list(fa = fa, delay = dl, tau = tau)

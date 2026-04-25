@@ -29,9 +29,9 @@ make_ncm_LR <- function(mu_shift) {
 
 # === Parámetros de contaminación (solo shift / scale) =====================
 CONTAM_CFG <- list(
-  train = list(rate = 0.05, model = "scale", params = list(lambda = 6)),
-  pre   = list(rate = 0.05, model = "scale", params = list(lambda = 6)),
-  post  = list(rate = 0.05, model = "scale", params = list(lambda = 6))
+  train = list(rate = 0.1, model = "shift", params = list(delta = 3)),
+  pre   = list(rate = 0.15, model = "shift", params = list(delta = 3)),
+  post  = list(rate = 0.15, model = "shift", params = list(delta = 3))
 )
 
 # 3) Definir escenarios y parámetros---------------------------------------
@@ -75,7 +75,7 @@ for (theta_s in theta_vals) {
                            bet_fun, bet_lbl, params_bf) {
         k_val <- if (needs_k) k_par else NULL
         
-        # ---- Llamada ÚNICA: ICM CONTAMINADO (sin CBF ni oráculos)
+        # ---- Llamada ÚNICA: ICM CONTAMINADO 
         out_icm <- montecarlo_ICM_contaminado(
           n_sim        = n_sim,
           h_vals       = h_vals,
@@ -137,8 +137,8 @@ for (theta_s in theta_vals) {
 df_all_methods <- dplyr::bind_rows(all_results,  .id = "scenario_key")
 df_all_taus    <- dplyr::bind_rows(all_taus_tbl, .id = "scenario_key")
 
-saveRDS(df_all_methods, file = "data/prueba_contaminada.rds")
-saveRDS(df_all_taus,    file = "data/prueba_taus_contaminada.rds") 
+saveRDS(df_all_methods, file = "data/prueba_contaminada_shift.rds")
+saveRDS(df_all_taus,    file = "data/prueba_taus_contaminada_shift.rds") 
 cat(" Simulación contaminada completada.\n")
 
 secs_total <- as.numeric(difftime(Sys.time(), t_total, units = "secs"))

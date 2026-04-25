@@ -4,7 +4,7 @@ library(readr)
 library(stringr)
 
 
-df <- readRDS("data/prueba_contaminada.rds")
+df <- readRDS("data/prueba_contaminada_shift.rds")
 
 # Columnas esperadas: Method, scenario_key, p_false_alarm, mean_delay
 df <- df %>%
@@ -88,4 +88,4 @@ bf_summary <- df_f %>%
   mutate(delay_5 = round(delay_5, 2),
          delay_10 = round(delay_10, 2))
 
-saveRDS(bf_summary, file = "data/tabla_delays_contaminada.rds")
+saveRDS(bf_summary, file = "data/tabla_delays_contaminada_shift.rds")

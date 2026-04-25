@@ -33,7 +33,7 @@ Los primeros análisis se inspiran en las gráficas y tablas de *Vovk et al.*, e
 
 ### Carga de datos
 ```{r cargadatos, echo=FALSE}
-df_all_methods <- readRDS("../data/prueba_modhist.rds")
+df_all_methods <- readRDS("../data/prueba_falsasalarmas.rds")
 table_results <-  readRDS("../data/tabla_delays.rds")
 ```
 
@@ -50,33 +50,29 @@ La **tabla** que acompaña a las gráficas resume, por **escenario**, el **retar
 
 ## Funcion de apuesta constante
 ```{r CBFchart, echo=FALSE}
-df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "LR Constant BF + ICM", "MAD Constant BF + ICM", "IQR Constant BF + ICM"))
+df_CBF <- df_all_methods %>% filter(Method %in% c("KNN Constant BF + ICM", "MAD Constant BF + ICM", "IQR Constant BF + ICM"))
 ggplot(df_CBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
-  geom_line(size = 1) +
-  geom_point(size = 1) +
+  geom_line(linewidth = 0.6) +      
+  geom_point(size = 1.5) +
   facet_grid(rows = vars(theta_stream), cols = vars(mu1),
-             labeller = labeller(
-               theta_stream = function(x) paste0("θ = ", x),
-               mu1          = function(x) paste0("μ₁ = ", x)
-             )) +
+             labeller = labeller(theta_stream = function(x) paste0("θ = ", x),
+                                  mu1 = function(x) paste0("μ₁ = ", x))) +
   coord_cartesian(xlim = c(0, 0.5)) +
-  theme_minimal(base_size = 13) +
+  theme_minimal(base_size = 9) +
   labs(
-    x     = expression(P[0](tau <= theta)),
-    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
-    title = "Comparación: Constant BF vs Oráculos",
-    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
-    color = "Método"
+    x = expression(P[0](tau <= theta)),
+    y = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparison: Constant Betting Function False alarm vs Mean Delay",
+    subtitle = "Panels: θ = 100, 200 and μ₁ = 1, 1.5, 2",
+    color = "Method"
   ) +
   theme(
-    strip.text.x     = element_text(size = 10, face = "bold"),
-    strip.text.y     = element_text(size = 10, face = "bold"),
-    panel.spacing    = unit(0.6, "lines"),
-    axis.text        = element_text(size = 10),
-    axis.title       = element_text(size = 10, face = "bold"),
-    plot.title       = element_text(size = 10, face = "bold"),
-    legend.position  = "right"
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    strip.text.x     = element_text(size = 9, face = "bold"),
+    strip.text.y     = element_text(size = 9, face = "bold")
   )
+
 ```
 
 ```{r CBFtable, echo=FALSE}
@@ -134,34 +130,36 @@ print_bf("Constant BF")
 
 ## Funcion de apuesta mixta
 ```{r}
-df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "LR Mixture BF + ICM", "MAD Mixture BF + ICM", "IQR Mixture BF + ICM"))
-ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
-  geom_line(size = 1) +
-  geom_point(size = 1) +
+df_MBF <- df_all_methods %>% filter(Method %in% c("KNN Mixture BF + ICM", "MAD Mixture BF + ICM", "IQR Mixture BF + ICM"))
+p2 <- ggplot(df_MBF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(linewidth = 0.6) +      
+  geom_point(size = 1.5) +
   facet_grid(rows = vars(theta_stream), cols = vars(mu1),
-             labeller = labeller(
-               theta_stream = function(x) paste0("θ = ", x),
-               mu1          = function(x) paste0("μ₁ = ", x)
-             )) +
+             labeller = labeller(theta_stream = function(x) paste0("θ = ", x),
+                                  mu1 = function(x) paste0("μ₁ = ", x))) +
   coord_cartesian(xlim = c(0, 0.5)) +
-  theme_minimal(base_size = 13) +
+  theme_minimal(base_size = 9) +
   labs(
-    x     = expression(P[0](tau <= theta)),
-    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
-    title = "Comparación: Mixture BF vs Oráculos",
-    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
-    color = "Método"
+    x = expression(P[0](tau <= theta)),
+    y = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparison: Mixture Betting Function False alarm vs Mean Delay",
+    subtitle = "Panels: θ = 100, 200 and μ₁ = 1, 1.5, 2",
+    color = "Method"
   ) +
   theme(
-    strip.text.x     = element_text(size = 12, face = "bold"),
-    strip.text.y     = element_text(size = 12, face = "bold"),
-    panel.spacing    = unit(0.6, "lines"),
-    axis.text        = element_text(size = 10),
-    axis.title       = element_text(size = 12, face = "bold"),
-    plot.title       = element_text(size = 14, face = "bold"),
-    legend.position  = "right"
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    strip.text.x     = element_text(size = 9, face = "bold"),
+    strip.text.y     = element_text(size = 9, face = "bold")
   )
-
+ggsave(
+  filename = "FA_vs_MD_mixture.pdf",
+  plot     = p2,
+  device   = cairo_pdf,
+  width    = 16, height = 12, units = "cm",
+  dpi      = 300,
+  bg       = "white"
+)
 ```
 
 ```{r}
@@ -170,33 +168,36 @@ print_bf("Mixture BF")
 
 ## Funcion de apuesta con KDE precomputada
 ```{r}
-df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "LR Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "IQR Precomputed KDE BF + ICM"))
-ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
-  geom_line(size = 1) +
-  geom_point(size = 1) +
+df_KDEF <- df_all_methods %>% filter(Method %in% c("KNN Precomputed KDE BF + ICM", "MAD Precomputed KDE BF + ICM", "IQR Precomputed KDE BF + ICM"))
+p3 <- ggplot(df_KDEF, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(linewidth = 0.6) +      
+  geom_point(size = 1.5) +
   facet_grid(rows = vars(theta_stream), cols = vars(mu1),
-             labeller = labeller(
-               theta_stream = function(x) paste0("θ = ", x),
-               mu1          = function(x) paste0("μ₁ = ", x)
-             )) +
+             labeller = labeller(theta_stream = function(x) paste0("θ = ", x),
+                                  mu1 = function(x) paste0("μ₁ = ", x))) +
   coord_cartesian(xlim = c(0, 0.5)) +
-  theme_minimal(base_size = 13) +
+  theme_minimal(base_size = 9) +
   labs(
-    x     = expression(P[0](tau <= theta)),
-    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
-    title = "Comparación: KDE PRECOMPUTED BF vs Oráculos",
-    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
-    color = "Método"
+    x = expression(P[0](tau <= theta)),
+    y = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparison: Precomputed KDE Betting Function False alarm vs Mean Delay",
+    subtitle = "Panels: θ = 100, 200 and μ₁ = 1, 1.5, 2",
+    color = "Method"
   ) +
   theme(
-    strip.text.x     = element_text(size = 12, face = "bold"),
-    strip.text.y     = element_text(size = 12, face = "bold"),
-    panel.spacing    = unit(0.6, "lines"),
-    axis.text        = element_text(size = 10),
-    axis.title       = element_text(size = 12, face = "bold"),
-    plot.title       = element_text(size = 14, face = "bold"),
-    legend.position  = "right"
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    strip.text.x     = element_text(size = 9, face = "bold"),
+    strip.text.y     = element_text(size = 9, face = "bold")
   )
+ggsave(
+  filename = "FA_vs_MD_pkde.pdf",
+  plot     = p3,
+  device   = cairo_pdf,
+  width    = 16, height = 12, units = "cm",
+  dpi      = 300,
+  bg       = "white"
+)
 ```
 
 ```{r}
@@ -205,38 +206,94 @@ print_bf("Precomputed KDE BF")
 
 ### Funcion de apuesta con histograma
 ```{r}
-df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM","LR Histogram BF + ICM", "MAD Histogram BF + ICM", "IQR Histogram BF + ICM"))
-ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
-  geom_line(size = 1) +
-  geom_point(size = 1) +
+df_HIST <- df_all_methods %>% filter(Method %in% c("KNN Histogram BF + ICM", "MAD Histogram BF + ICM", "IQR Histogram BF + ICM"))
+p4 <- ggplot(df_HIST, aes(x = p_false_alarm, y = log_delay, color = Method)) +
+  geom_line(linewidth = 0.6) +      
+  geom_point(size = 1.5) +
   facet_grid(rows = vars(theta_stream), cols = vars(mu1),
-             labeller = labeller(
-               theta_stream = function(x) paste0("θ = ", x),
-               mu1          = function(x) paste0("μ₁ = ", x)
-             )) +
-  coord_cartesian(xlim = c(0,0.5)) +
-  theme_minimal(base_size = 13) +
+             labeller = labeller(theta_stream = function(x) paste0("θ = ", x),
+                                  mu1 = function(x) paste0("μ₁ = ", x))) +
+  coord_cartesian(xlim = c(0, 0.5)) +
+  theme_minimal(base_size = 9) +
   labs(
-    x     = expression(P[0](tau <= theta)),
-    y     = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
-    title = "Comparación: HISTOGRAM BF vs Oráculos",
-    subtitle = "Paneles: θ = 100,200 y μ₁ = 1,1.5,2",
-    color = "Método"
+    x = expression(P[0](tau <= theta)),
+    y = expression(log[10](1 + E[1](tau - theta ~ "|" ~ tau > theta))),
+    title = "Comparison: Histogram Betting Function False alarm vs Mean Delay",
+    subtitle = "Panels: θ = 100, 200 and μ₁ = 1, 1.5, 2",
+    color = "Method"
   ) +
   theme(
-    strip.text.x     = element_text(size = 12, face = "bold"),
-    strip.text.y     = element_text(size = 12, face = "bold"),
-    panel.spacing    = unit(0.6, "lines"),
-    axis.text        = element_text(size = 10),
-    axis.title       = element_text(size = 12, face = "bold"),
-    plot.title       = element_text(size = 14, face = "bold"),
-    legend.position  = "right"
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    strip.text.x     = element_text(size = 9, face = "bold"),
+    strip.text.y     = element_text(size = 9, face = "bold")
   )
+ggsave(
+  filename = "FA_vs_MD_hist.pdf",
+  plot     = p4,
+  device   = cairo_pdf,
+  width    = 16, height = 12, units = "cm",
+  dpi      = 300,
+  bg       = "white"
+)
 ```
 
 ```{r}
 print_bf("Histogram BF")
 ```
+
+```{r}
+plot_delay_all_bf_noout <- function(threshold_col = "delay_10",
+                               excluir_ncm  = "LR",
+                               ncm_order    = c("KNN", "MAD", "IQR")) {
+
+  df_plot <- table_results %>%
+    dplyr::filter(!NCM %in% excluir_ncm) %>%
+    dplyr::mutate(
+      NCM          = factor(NCM, levels = ncm_order),
+      mu1          = as.numeric(gsub(".*μ1=([0-9.]+)", "\\1", scenario_key)),
+      theta_stream = as.numeric(gsub("θ=([0-9.]+)_.*", "\\1", scenario_key)),
+      bf_label     = as.character(BF)
+    ) %>%
+    dplyr::rename(valor = !!threshold_col)
+
+  lbl_threshold <- ifelse(threshold_col == "delay_5", "5%", "10%")
+
+  ggplot(df_plot, aes(x = mu1, y = valor, color = NCM, group = NCM)) +
+    geom_line(linewidth = 0.9) +
+    geom_point(size = 1.6) +
+    facet_grid(rows = vars(theta_stream), cols = vars(bf_label),
+           labeller = labeller(
+  theta_label = as_labeller(function(x) x, label_parsed),
+  bf_label    = as_labeller(function(x) x)
+)) +
+    scale_x_continuous(breaks = c(1, 1.5, 2)) +
+    labs(
+      title = paste0("Probabilidad de falsa alarma ", lbl_threshold),
+      x     = expression(mu[1]),
+      y     = "Tiempo esperado de detección",
+      color = "NCM"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "bottom",
+      strip.text.x    = element_text(size = 9, face = "bold"),
+      strip.text.y    = element_text(size = 9, face = "bold")
+    )
+}
+```
+
+```{r}
+p <- plot_delay_all_bf_noout("delay_10", excluir_ncm = "LR")
+ggsave("delay_10_all_bf_noout.png", plot = p, width = 14, height = 7, dpi = 300)
+```
+
+```{r}
+p <- plot_delay_all_bf_noout("delay_5", excluir_ncm = "LR")
+ggsave("delay_5_all_bf_noout.png", plot = p, width = 14, height = 7, dpi = 300)
+```
+
+
 ### Metodologia de estos resultados
 En cada escenario se simula una secuencia de longitud \(n = 1000\) con un **único punto de cambio** en
 \(\theta \in \{100, 200\}\).
@@ -304,9 +361,24 @@ summ_mean  <- summ_mean %>% mutate(scenario = factor(as.character(scenario), lev
 ref_theta  <- ref_theta %>%  mutate(scenario = factor(as.character(scenario), levels = esc_levels))
 
 # Función: una figura por BF con 6 escenarios facetados
-plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3) {
+plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3, excluir_ncm = NULL) {
   dmean <- df_mean %>% filter(bf == bf_sel)
   dref  <- df_ref  %>% filter(bf == bf_sel)
+  
+  if (!is.null(excluir_ncm)) {
+    dmean <- dmean %>% filter(!ncm %in% excluir_ncm)
+  }
+  
+  # Convertir etiquetas a expresiones parseables
+  # Asume formato "theta=100_mu1=1" → "theta==100~mu[1]==1"
+  label_expr <- function(x) {
+  x <- gsub("θ=([0-9.]+)_μ1=([0-9.]+)",
+             "theta==\\1~mu[1]==\\2", x)
+  return(x)
+}
+  
+  dmean$scenario <- label_expr(as.character(dmean$scenario))
+  dref$scenario  <- label_expr(as.character(dref$scenario))
 
   ggplot(dmean, aes(x = threshold, y = tau_mean, color = ncm, group = ncm)) +
     geom_hline(data = dref, aes(yintercept = theta_stream),
@@ -314,9 +386,10 @@ plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3) {
     geom_line(aes(alpha = det_rate), linewidth = 0.9) +
     geom_point(aes(alpha = det_rate), size = 1.6) +
     scale_alpha(range = c(0.35, 1), guide = "none") +
-    facet_wrap(vars(scenario), ncol = ncol, scales = "free_y") +
+    facet_wrap(vars(scenario), ncol = ncol, scales = "free_y",
+               labeller = label_parsed) +  # <-- clave
     labs(
-      title = paste("Convergencia de τ medio a θ —", as.character(bf_sel)),
+      title    = paste("Convergencia de τ medio a θ —", as.character(bf_sel)),
       subtitle = "Línea roja: θ real. Transparencia ~ tasa de detección por umbral.",
       x = "Umbral", y = "τ medio (solo detecciones)", color = "NCM"
     ) +
@@ -331,7 +404,7 @@ plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3) {
 
 ```{r}
 bf_demo <- levels(summ_mean$bf)[1]
-plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
+plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3, excluir_ncm='LR')
 ```
 
 
@@ -340,7 +413,7 @@ plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
 
 ```{r}
 bf_demo <- levels(summ_mean$bf)[3]
-plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
+plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3, excluir_ncm='LR')
 ```
 
 ## Grafico de convergencia funcion KDE precomputada
@@ -348,13 +421,21 @@ plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
 
 ```{r}
 bf_demo <- levels(summ_mean$bf)[4]
-plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
+p <- plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3,excluir_ncm='LR')
+ggsave(
+  filename = paste0("convergencia_tau_", bf_demo, ".png"),
+  plot     = p,
+  width    = 12,
+  height   = 8,
+  dpi      = 300
+)
+
 ```
 
 ## Grafico de convergencia funcion de apuesta histograma
 ```{r}
 bf_demo <- levels(summ_mean$bf)[2]
-plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3)
+plot_por_bf(summ_mean, ref_theta, bf_demo, ncol = 3, excluir_ncm='LR')
 ```
 
 
@@ -549,16 +630,16 @@ donde \(\#\text{FA}\) es el número total de falsas alarmas agregadas en todas l
 En esta seccion se compara el sesempe;o de las medidas de no conformidad ante datos contaminados, es decir series de datos sinteticas a las cuales se les inyectan datos atipicos para estresar la capacidad de deteccion del metodo, las tablas presentadas en esta seccion corresponden a comapraciones de los metodos con datos atipicos.
 
 ```{r}
-contaminated_summary <- readRDS("../data/prueba_contaminada.rds")
-tau_contaminated <- readRDS("../data/prueba_taus_contaminada.rds")
-table_results_contaminated <-  readRDS("../data/tabla_delays_contaminada.rds")
+contaminated_summary <- readRDS("../data/prueba_contaminada_scale.rds")
+tau_contaminated <- readRDS("../data/prueba_taus_contaminada_scale.rds")
+table_results_contaminated <-  readRDS("../data/tabla_delays_contaminada_scale.rds")
 ```
 
 
 ### Funcion de apuesta constante
 
 ```{r}
-df_CBF_contam <- contaminated_summary %>% filter(Method %in% c("KNN Constant BF + ICM (contaminado)", "LR Constant BF + ICM (contaminado)", "MAD Constant BF + ICM (contaminado)", "IQR Constant BF + ICM (contaminado)"))
+df_CBF_contam <- contaminated_summary %>% filter(Method %in% c("KNN Constant BF + ICM (contaminado)", "MAD Constant BF + ICM (contaminado)", "IQR Constant BF + ICM (contaminado)"))
 ggplot(df_CBF_contam, aes(x = p_false_alarm, y = log_delay, color = Method)) +
   geom_line(size = 1) +
   geom_point(size = 1) +
@@ -638,7 +719,41 @@ print_bf_contaminada <- function(bf_name,
     kableExtra::column_spec(1 + k + 1, border_left = TRUE) %>%
     kableExtra::kable_styling(full_width = FALSE, bootstrap_options = c("striped","condensed"))
 }
+
+plot_delay_vs_mu1 <- function(bf_name,
+                               ncm_order   = c("LR", "KNN", "MAD", "IQR"),
+                               excluir_ncm = NULL) {
+
+  x <- dplyr::filter(table_results_contaminated, BF == bf_name)
+  if (nrow(x) == 0) { cat("Sin filas para BF =", bf_name, "\n"); return(invisible(NULL)) }
+
+  if (!is.null(excluir_ncm)) x <- x %>% filter(!NCM %in% excluir_ncm)
+  ncm_order <- ncm_order[ncm_order %in% unique(x$NCM)]
+
+  df_plot <- x %>%
+    dplyr::mutate(
+      NCM           = factor(NCM, levels = ncm_order),
+      theta_label   = paste0("theta==", theta_stream)   # parseable
+    )
+
+  ggplot(df_plot, aes(x = mu1, y = delay_5, color = NCM, group = NCM)) +
+    geom_line(linewidth = 0.9) +
+    geom_point(size = 1.6) +
+    facet_wrap(vars(theta_label), scales = "free_y",
+               labeller = label_parsed) +
+    labs(
+      title    = paste("Delay (FA 5%) vs μ₁ —", bf_name),
+      subtitle = expression("Un panel por " ~ theta ~ ". Color por NCM."),
+      x        = expression(mu[1]),
+      y        = "Delay medio (umbral 5%)",
+      color    = "NCM"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(legend.position = "bottom")
+}
+
 print_bf_contaminada("Constant BF")
+plot_delay_vs_mu1("Constant BF")
 ```
 
 
@@ -796,9 +911,22 @@ summ_mean_contam  <- summ_mean_contam %>% mutate(scenario = factor(as.character(
 ref_theta_contam  <- ref_theta_contam %>%  mutate(scenario = factor(as.character(scenario), levels = esc_levels))
 
 # Función: una figura por BF con 6 escenarios facetados
-plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3) {
+plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3, excluir_ncm = NULL) {
   dmean <- df_mean %>% filter(bf == bf_sel)
   dref  <- df_ref  %>% filter(bf == bf_sel)
+
+  if (!is.null(excluir_ncm)) {
+    dmean <- dmean %>% filter(!ncm %in% excluir_ncm)
+  }
+
+  label_expr <- function(x) {
+    x <- gsub("θ=([0-9.]+)_μ1=([0-9.]+)",
+               "theta==\\1~mu[1]==\\2", x)
+    return(x)
+  }
+
+  dmean$scenario <- label_expr(as.character(dmean$scenario))
+  dref$scenario  <- label_expr(as.character(dref$scenario))
 
   ggplot(dmean, aes(x = threshold, y = tau_mean, color = ncm, group = ncm)) +
     geom_hline(data = dref, aes(yintercept = theta_stream),
@@ -806,15 +934,67 @@ plot_por_bf <- function(df_mean, df_ref, bf_sel, ncol = 3) {
     geom_line(aes(alpha = det_rate), linewidth = 0.9) +
     geom_point(aes(alpha = det_rate), size = 1.6) +
     scale_alpha(range = c(0.35, 1), guide = "none") +
-    facet_wrap(vars(scenario), ncol = ncol, scales = "free_y") +
+    facet_wrap(vars(scenario), ncol = ncol, scales = "free_y",
+               labeller = label_parsed) +
     labs(
-      title = paste("Convergencia de τ medio a θ con datos contaminados —", as.character(bf_sel)),
+      title    = paste("Convergencia de τ medio a θ con datos contaminados —", as.character(bf_sel)),
       subtitle = "Línea roja: θ real. Transparencia ~ tasa de detección por umbral.",
       x = "Umbral", y = "τ medio (solo detecciones)", color = "NCM"
     ) +
     theme_minimal(base_size = 12) +
     theme(legend.position = "bottom")
 }
+```
+
+
+```{r}
+plot_delay_all_bf <- function(threshold_col = "delay_10",
+                               excluir_ncm  = "LR",
+                               ncm_order    = c("KNN", "MAD", "IQR")) {
+
+  df_plot <- table_results_contaminated %>%
+    dplyr::filter(!NCM %in% excluir_ncm) %>%
+    dplyr::mutate(
+      NCM          = factor(NCM, levels = ncm_order),
+      mu1          = as.numeric(gsub(".*μ1=([0-9.]+)", "\\1", scenario_key)),
+      theta_stream = as.numeric(gsub("θ=([0-9.]+)_.*", "\\1", scenario_key)),
+      bf_label     = as.character(BF)
+    ) %>%
+    dplyr::rename(valor = !!threshold_col)
+
+  lbl_threshold <- ifelse(threshold_col == "delay_5", "5%", "10%")
+
+  ggplot(df_plot, aes(x = mu1, y = valor, color = NCM, group = NCM)) +
+    geom_line(linewidth = 0.9) +
+    geom_point(size = 1.6) +
+    facet_grid(rows = vars(theta_stream), cols = vars(bf_label),
+           labeller = labeller(
+  theta_label = as_labeller(function(x) x, label_parsed),
+  bf_label    = as_labeller(function(x) x)
+)) +
+    scale_x_continuous(breaks = c(1, 1.5, 2)) +
+    labs(
+      title = paste0("Probabilidad de falsa alarma ", lbl_threshold),
+      x     = expression(mu[1]),
+      y     = "Tiempo esperado de detección",
+      color = "NCM"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "bottom",
+      strip.text.x    = element_text(size = 9, face = "bold"),
+      strip.text.y    = element_text(size = 9, face = "bold")
+    )
+}
+```
+
+```{r}
+p <- plot_delay_all_bf("delay_10", excluir_ncm = "LR")
+ggsave("delay_10_all_bf_scale_outlier.png", plot = p, width = 14, height = 7, dpi = 300)
+```
+```{r}
+plot_delay_all_bf("delay_5", excluir_ncm = "LR")
+ggsave("delay_5_all_bf_scale_outlier.png", plot = p, width = 14, height = 7, dpi = 300)
 ```
 
 
@@ -840,7 +1020,14 @@ plot_por_bf(summ_mean_contam, ref_theta_contam, bf_demo, ncol = 3)
 
 ```{r}
 bf_demo <- levels(summ_mean_contam$bf)[4]
-plot_por_bf(summ_mean_contam, ref_theta_contam, bf_demo, ncol = 3)
+p <- plot_por_bf(summ_mean_contam, ref_theta_contam, bf_demo, ncol = 3, excluir_ncm = 'LR')
+ggsave(
+  filename = paste0("convergencia_tau_contaminada_", bf_demo, ".png"),
+  plot     = p,
+  width    = 12,
+  height   = 8,
+  dpi      = 300
+)
 ```
 
 
@@ -875,20 +1062,55 @@ Para cada configuración se almacenaron: **retardo medio de detección**, **tasa
 
 ```{r}
 KNN_sens_summary <- readRDS("../data/ncm_compare_KNN_MAD_IQR_LR_summary.rds")
+KNN_sens_summary <- KNN_sens_summary |> filter(!is.na(K))
 ```
 
 ##Mapa de calor retardeo medio para los diferentes valores de K
 
 ```{r}
-ggplot(KNN_sens_summary,
+pknn <- ggplot(KNN_sens_summary,
        aes(x = threshold, y = factor(K), fill = mean_delay)) +
-  geom_tile() +
-  facet_grid(bf ~ scenario_id) +
-  scale_fill_viridis_c(option = "magma", direction = -1) +
-  labs(x = "Umbral h", y = "K (KNN)",
-       fill = "Retardo medio",
-       title = "Sensibilidad de K (KNN) - Retardo medio por h y K") +
-  theme_minimal(base_size = 12)
+  geom_tile(color = "white", size = 0.2) +
+  facet_grid(bf ~ scenario_id, labeller = labeller(
+    bf = label_value,              # cambia por nombres bonitos si quieres
+    scenario_id = label_value
+  )) +
+  scale_fill_viridis_c(
+    option = "magma", direction = -1, end = 0.9,
+    name = "Mean Delay"
+  ) +
+  labs(
+    x = "Threshold h",
+    y = "K",
+    title = "Sensibility of K – Mean Delay for h & K"
+  ) +
+  coord_cartesian(expand = FALSE) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    strip.text = element_text(face = "bold"),
+    strip.background = element_rect(fill = "grey95", color = NA),
+    legend.position = "bottom",
+    legend.title = element_text(vjust = 1),
+    legend.box.margin = margin(t = 4, r = 0, b = 0, l = 0),
+    axis.ticks = element_blank()
+  ) +
+  guides(
+    fill = guide_colorbar(
+      title.position = "top",
+      barwidth = unit(4, "cm"),
+      barheight = unit(0.35, "cm")
+    )
+  )
+ggsave(
+  filename = "KNNSENS.pdf",
+  plot     = pknn,
+  device   = cairo_pdf,
+  width    = 16, height = 16, units = "cm",
+  dpi      = 300,
+  bg       = "white"
+)
+
 ```
 
 Este mapa de calor muestra que, para distintos valores de \(K\), el **promedio del retardo medio** cambia en magnitud y patrón. La variación es más notoria con la **función de apuesta de histograma**, especialmente cuando el cambio es pequeño (salto en la media \(\mu = 1\)), donde se observa mayor variabilidad. En los demás escenarios el comportamiento luce más uniforme, salvo en los extremos \(K = 1\) y \(K = 200\), donde aparece un incremento del retardo medio.
